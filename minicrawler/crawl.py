@@ -1,7 +1,10 @@
 #!.venv/bin/python3
-"""
-A tiny, polite, depth-1 web crawler for a single host.
-"""
+# ###########################################
+# Name: Alexander Katrompas
+# Assignment: 8
+# Purpose: A tiny, polite, depth-1
+#          web crawler for a single host.
+# ###########################################
 
 import sys
 import argparse
@@ -23,7 +26,7 @@ def _build_parser() -> argparse.ArgumentParser:
     This function builds and returns the argument parser
     for the tiny, polite, depth-1 web crawler command line application.
 
-    :param na : na
+    :param na: na
     :return argparse.ArgumentParser : parser
     :exception na : na
     :note na
@@ -80,7 +83,7 @@ def _is_html(content_type: Optional[str]) -> bool:
     This function checks whether the provided Content-Type header value
     indicates that the HTTP response is HTML content.
 
-    :param Optional[str] : content_type
+    :param content_type: Optional[str]
     :return bool : is_html
     :exception na : na
     :note na
@@ -102,7 +105,7 @@ def http_get(
     and returning only HTML content in the 2xx range. It also retries on timeouts
     and 5xx responses up to the specified number of retries.
 
-    :param str : url
+    :param url: str
     :return Tuple[int, str, Optional[str]] : status_finalurl_html
     :exception na : na
     :note na
@@ -161,7 +164,7 @@ class _NDJSONWriter:
     This class provides a simple NDJSON writer that writes
     one JSON object per line to the provided file handle.
 
-    :param na : na
+    :param na: na
     :return na : na
     :exception na : na
     :note na
@@ -180,7 +183,7 @@ class _NDJSONWriter:
         This function initializes the NDJSON writer with an
         already-open file handle for output.
 
-        :param object : fh
+        :param fh: object
         :return None : na
         :exception na : na
         :note na
@@ -208,7 +211,7 @@ class _NDJSONWriter:
         This function writes a single dictionary as a JSON object
         on one line of the NDJSON output file.
 
-        :param Dict[str, Any] : row
+        :param row: Dict[str, Any]
         :return None : na
         :exception na : na
         :note na
@@ -222,7 +225,7 @@ def open_writer(path: str) -> Iterator[object]:
     This function is a context manager that opens a file for NDJSON output
     and yields an NDJSON writer object with a write_row(row: dict) method.
 
-    :param str : path
+    :param path: str
     :return Iterator[object] : writer_iterator
     :exception na : na
     :note na
@@ -239,7 +242,7 @@ def write_row(writer: object, row: Dict[str, Any]) -> None:
     This function is a thin wrapper that writes a row using the provided writer,
     without requiring the caller to depend on the concrete writer class.
 
-    :param object : writer
+    :param writer: object
     :return None : na
     :exception na : na
     :note na
@@ -256,7 +259,7 @@ def _normalize_url(url: str) -> str:
     and netloc, stripping default ports, and removing trailing slashes when
     appropriate.
 
-    :param str : url
+    :param url: str
     :return str : normalized_url
     :exception na : na
     :note na
@@ -283,7 +286,7 @@ def _same_host(url: str, seed_netloc: str) -> bool:
     This function checks whether a given URL has the same host
     (netloc) as the provided seed host.
 
-    :param str : url
+    :param url: str
     :return bool : is_same_host
     :exception na : na
     :note na
@@ -296,7 +299,7 @@ def _extract_title(soup: BeautifulSoup) -> Optional[str]:
     This function extracts and returns the page title from a BeautifulSoup
     HTML document, or None if no usable title is found.
 
-    :param BeautifulSoup : soup
+    :param soup: BeautifulSoup
     :return Optional[str] : title
     :exception na : na
     :note na
@@ -312,7 +315,7 @@ def parse_page(html: str, base_url: str) -> Dict[str, object]:
     This function parses a single HTML page and returns the page title and
     a list of internal links (same host as the base_url), normalized and deduplicated.
 
-    :param str : html
+    :param html: str
     :return Dict[str, object] : parsed_page_info
     :exception na : na
     :note na
@@ -348,7 +351,7 @@ def run(
     It fetches the seed, discovers internal links, and then fetches those links
     up to the specified maximum number of pages.
 
-    :param str : seed
+    :param seed: str
     :return Iterable[Dict[str, object]] : crawl_rows
     :exception na : na
     :note na
@@ -433,7 +436,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     This function is the application driver
     for a tiny, polite, depth-1 web crawler program that writes NDJSON output.
 
-    :param Optional[List[str]] : argv
+    :param argv: Optional[List[str]]
     :return int : status_code
     :exception na : na
     :note na
