@@ -3,5 +3,6 @@
 # Add Everything we need back
 !.gitignore
 !minicrawler
-!tests
+!minicrawler/**
+!tests/**
 !README.md
