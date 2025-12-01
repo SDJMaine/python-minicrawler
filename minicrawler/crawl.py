@@ -18,8 +18,22 @@ from urllib.parse import urljoin, urlparse, urlunparse
 from bs4 import BeautifulSoup
 from contextlib import contextmanager
 
-
 HTML_MIME_PREFIXES = ("text/html", "application/xhtml+xml")
+
+DEFAULT_MAX_PAGES = 50
+DEFAULT_DELAY_SECONDS = 0.2
+DEFAULT_TIMEOUT_SECONDS = 5
+DEFAULT_RETRIES_COUNT = 1
+
+STATUS_MIN_SUCCESS = 200
+STATUS_MAX_SUCCESS = 299
+STATUS_MIN_SERVER_ERROR = 500
+STATUS_MAX_SERVER_ERROR = 599
+STATUS_NONE = 0
+
+INTERNAL_LINK_LIMIT = 5
+MIN_PAGES_ALLOWED = 1
+SLEEP_MIN_DELAY = 0.0
 
 def _build_parser() -> argparse.ArgumentParser:
     """
@@ -38,36 +52,41 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="cmd", required=True)
 
     crawl = subparsers.add_parser(
-        "crawl", help="Crawl a seed page and its first-level internal links."
+        "crawl",
+        help="Crawl a seed page and its first-level internal links.",
     )
     crawl.add_argument(
-        "--seed", required=True, help="Seed URL, e.g. https://example.com/"
+        "--seed",
+        required=True,
+        help="Seed URL, e.g. https://example.com/",
     )
     crawl.add_argument(
-        "--out", default="data.ndjson", help="Output file (default: data.ndjson)"
+        "--out",
+        default="data.ndjson",
+        help="Output file (default: data.ndjson)",
     )
     crawl.add_argument(
         "--max-pages",
         type=int,
-        default=50,
+        default=DEFAULT_MAX_PAGES,
         help="Total pages including seed (default: 50)",
     )
     crawl.add_argument(
         "--delay",
         type=float,
-        default=0.2,
+        default=DEFAULT_DELAY_SECONDS,
         help="Delay seconds between requests (default: 0.2)",
     )
     crawl.add_argument(
         "--timeout",
         type=int,
-        default=5,
+        default=DEFAULT_TIMEOUT_SECONDS,
         help="HTTP timeout seconds (default: 5)",
     )
     crawl.add_argument(
         "--retries",
         type=int,
-        default=1,
+        default=DEFAULT_RETRIES_COUNT,
         help="Retries on timeout/5xx (default: 1)",
     )
     crawl.add_argument(
@@ -88,16 +107,20 @@ def _is_html(content_type: Optional[str]) -> bool:
     :exception na : na
     :note na
     """
-    if not content_type:
-        return False
-    ct = content_type.lower().split(";")[0].strip()
-    return any(ct.startswith(prefix) for prefix in HTML_MIME_PREFIXES)
+    is_html = False
+    if content_type:
+        content_type_lower = content_type.lower()
+        main_type = content_type_lower.split(";")[0].strip()
+        is_html = any(
+            main_type.startswith(prefix) for prefix in HTML_MIME_PREFIXES
+        )
+    return is_html
 
 
 def http_get(
         url: str,
-        timeout: int = 5,
-        retries: int = 1,
+        timeout: int = DEFAULT_TIMEOUT_SECONDS,
+        retries: int = DEFAULT_RETRIES_COUNT,
         user_agent: str = "MiniCrawler/0.1",
 ) -> Tuple[int, str, Optional[str]]:
     """
@@ -112,51 +135,67 @@ def http_get(
     """
     attempt = 0
     last_exc = None
+    status = STATUS_NONE
+    final_url = url
+    html = None
+    max_attempts = retries + 1
     headers = {
         "User-Agent": user_agent,
         "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
     }
 
-    while True:
+    should_continue = True
+
+    while attempt < max_attempts and should_continue:
         attempt += 1
         try:
             resp = requests.get(url, timeout=timeout, headers=headers)
             status = resp.status_code
             final_url = str(resp.url)
+            content_type_header = resp.headers.get("Content-Type")
+            is_html_response = _is_html(content_type_header)
+            is_success = (
+                    STATUS_MIN_SUCCESS
+                    <= status
+                    <= STATUS_MAX_SUCCESS
+            )
+            is_server_error = (
+                    STATUS_MIN_SERVER_ERROR
+                    <= status
+                    <= STATUS_MAX_SERVER_ERROR
+            )
 
-            if 500 <= status <= 599 and attempt <= retries + 1:
+            if is_success and is_html_response:
+                html = resp.text
+                should_continue = False
+            elif is_server_error and attempt < max_attempts:
                 logging.debug(
                     "5xx (%d) for %s; retrying (%d/%d)",
                     status,
                     url,
                     attempt,
-                    retries + 1,
-                    )
-                continue
-
-            if 200 <= status <= 299 and _is_html(resp.headers.get("Content-Type")):
-                return status, final_url, resp.text
-
-            # Non-HTML or non-2xx: return status and final URL, html=None
-            return status, final_url, None
+                    max_attempts,
+                )
+            else:
+                should_continue = False
 
         except (requests.Timeout, requests.ConnectionError) as exc:
             last_exc = exc
-            if attempt <= retries + 1:
+            if attempt < max_attempts:
                 logging.debug(
                     "Network error for %s; retrying (%d/%d)",
                     url,
                     attempt,
-                    retries + 1,
-                    )
-                continue
-            logging.warning(
-                "Network failure for %s after retries: %s", url, repr(exc)
-            )
-            break
+                    max_attempts,
+                )
+            else:
+                logging.warning(
+                    "Network failure for %s after retries: %s",
+                    url,
+                    repr(exc),
+                )
 
-    # Exhausted
-    return 0, url, None
+    return status, final_url, html
 
 
 class _NDJSONWriter:
@@ -232,7 +271,8 @@ def open_writer(path: str) -> Iterator[object]:
     """
     mode = "w"
     encoding = "utf-8"
-    with open(path, mode, encoding=encoding, newline="") as fh:
+    newline_setting = ""
+    with open(path, mode, encoding=encoding, newline=newline_setting) as fh:
         writer = _NDJSONWriter(fh)
         yield writer
 
@@ -268,10 +308,9 @@ def _normalize_url(url: str) -> str:
     scheme = parsed.scheme.lower()
     netloc = parsed.netloc.lower()
 
-    # strip default ports
-    if (scheme == "http" and netloc.endswith(":80")) or (
-            scheme == "https" and netloc.endswith(":443")
-    ):
+    is_http_default_port = scheme == "http" and netloc.endswith(":80")
+    is_https_default_port = scheme == "https" and netloc.endswith(":443")
+    if is_http_default_port or is_https_default_port:
         netloc = netloc.rsplit(":", 1)[0]
 
     path = parsed.path or "/"
@@ -291,7 +330,10 @@ def _same_host(url: str, seed_netloc: str) -> bool:
     :exception na : na
     :note na
     """
-    return urlparse(url).netloc.lower() == seed_netloc.lower()
+    url_netloc = urlparse(url).netloc.lower()
+    seed_netloc_lower = seed_netloc.lower()
+    is_same_host = url_netloc == seed_netloc_lower
+    return is_same_host
 
 
 def _extract_title(soup: BeautifulSoup) -> Optional[str]:
@@ -304,10 +346,12 @@ def _extract_title(soup: BeautifulSoup) -> Optional[str]:
     :exception na : na
     :note na
     """
+    title = None
     if soup.title and soup.title.string:
-        title = soup.title.string.strip()
-        return title or None
-    return None
+        raw_title = soup.title.string.strip()
+        if raw_title:
+            title = raw_title
+    return title
 
 
 def parse_page(html: str, base_url: str) -> Dict[str, object]:
@@ -327,16 +371,18 @@ def parse_page(html: str, base_url: str) -> Dict[str, object]:
     seen: Set[str] = set()
     internal: List[str] = []
 
-    for anchor in soup.find_all("a", href=True):
+    anchors = soup.find_all("a", href=True)
+    for anchor in anchors:
         raw = anchor.get("href")
         abs_url = urljoin(base_url, raw)
-        abs_url = _normalize_url(abs_url)
-        if _same_host(abs_url, seed_netloc):
-            if abs_url not in seen:
-                seen.add(abs_url)
-                internal.append(abs_url)
+        normalized_url = _normalize_url(abs_url)
+        if _same_host(normalized_url, seed_netloc):
+            if normalized_url not in seen:
+                seen.add(normalized_url)
+                internal.append(normalized_url)
 
-    return {"title": title, "internal_links": internal}
+    parsed_page_info = {"title": title, "internal_links": internal}
+    return parsed_page_info
 
 
 def run(
@@ -356,36 +402,49 @@ def run(
     :exception na : na
     :note na
     """
-    if max_pages < 1:
+    if max_pages < MIN_PAGES_ALLOWED:
         return
 
-    seed = _normalize_url(seed)
-    seed_host = urlparse(seed).netloc
+    seed_normalized = _normalize_url(seed)
+    seed_host = urlparse(seed_normalized).netloc
 
     fetched: Set[str] = set()
 
-    logging.info("Fetching seed: %s", seed)
-    status, final_url, html = http_get(seed, timeout=timeout, retries=retries)
+    logging.info("Fetching seed: %s", seed_normalized)
+    status, final_url, html = http_get(
+        seed_normalized,
+        timeout=timeout,
+        retries=retries,
+    )
     fetched.add(final_url)
 
     links: List[str] = []
     title: Optional[str] = None
+    candidates: List[str] = []
 
     if html:
         parsed = parse_page(html, final_url)
         title = parsed["title"]
-        all_internal = [
-            url for url in parsed["internal_links"] if urlparse(url).netloc == seed_host
-        ]
-        candidates: List[str] = []
-        seen: Set[str] = set()
-        for url in all_internal:
-            if url not in seen and url != final_url:
-                seen.add(url)
-                candidates.append(url)
-        links = candidates[:5]
-    else:
+        internal_links: List[str] = parsed["internal_links"]
+
+        all_internal: List[str] = []
+        for internal_url in internal_links:
+            internal_host = urlparse(internal_url).netloc
+            if internal_host == seed_host:
+                all_internal.append(internal_url)
+
         candidates = []
+        seen_candidates: Set[str] = set()
+        for candidate_url in all_internal:
+            is_new_candidate = (
+                    candidate_url not in seen_candidates
+                    and candidate_url != final_url
+            )
+            if is_new_candidate:
+                seen_candidates.add(candidate_url)
+                candidates.append(candidate_url)
+
+        links = candidates[:INTERNAL_LINK_LIMIT]
 
     yield {
         "url": final_url,
@@ -395,40 +454,42 @@ def run(
         "links": links if html else [],
     }
 
-    if max_pages == 1:
-        return
+    if max_pages > MIN_PAGES_ALLOWED:
+        total_allowed = max_pages - MIN_PAGES_ALLOWED
+        taken = 0
 
-    total_allowed = max_pages - 1
-    taken = 0
+        for url in candidates:
+            can_fetch_more = taken < total_allowed
+            is_new_url = url not in fetched
 
-    for url in candidates:
-        if taken >= total_allowed:
-            break
-        if url in fetched:
-            continue
+            if can_fetch_more and is_new_url:
+                sleep_delay = max(SLEEP_MIN_DELAY, delay)
+                time.sleep(sleep_delay)
+                logging.info("Fetching: %s", url)
+                status, final_url, html = http_get(
+                    url,
+                    timeout=timeout,
+                    retries=retries,
+                )
 
-        time.sleep(max(0.0, delay))
-        logging.info("Fetching: %s", url)
-        status, final_url, html = http_get(url, timeout=timeout, retries=retries)
+                fetched.add(final_url)
+                title = None
+                child_links: List[str] = []
 
-        fetched.add(final_url)
-        title = None
-        child_links: List[str] = []
+                if html:
+                    parsed_child = parse_page(html, final_url)
+                    title = parsed_child["title"]
+                    all_internal_child: List[str] = parsed_child["internal_links"]
+                    child_links = all_internal_child[:INTERNAL_LINK_LIMIT]
 
-        if html:
-            parsed = parse_page(html, final_url)
-            title = parsed["title"]
-            all_internal = parsed["internal_links"]
-            child_links = all_internal[:5]
-
-        yield {
-            "url": final_url,
-            "status": status,
-            "title": title,
-            "n_internal_links": len(child_links),
-            "links": child_links,
-        }
-        taken += 1
+                yield {
+                    "url": final_url,
+                    "status": status,
+                    "title": title,
+                    "n_internal_links": len(child_links),
+                    "links": child_links,
+                }
+                taken += 1
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -471,4 +532,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
