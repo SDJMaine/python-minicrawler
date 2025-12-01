@@ -4,5 +4,6 @@
 !.gitignore
 !minicrawler
 !minicrawler/**
+!tests
 !tests/**
 !README.md
