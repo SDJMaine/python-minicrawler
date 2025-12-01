@@ -1,0 +1,7 @@
+*
+
+# Add Everything we need back
+!.gitignore
+!minicrawler
+!tests
+!README.md
