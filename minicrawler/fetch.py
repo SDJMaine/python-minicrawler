@@ -1,5 +1,5 @@
 # ###########################################
-# Name: Alexander Katrompas
+# Name: Shayene Johnson
 # Assignment: 8
 # Purpose: Fetch module for the web crawler
 #          Provides HTTP GET
@@ -27,7 +27,7 @@ def _is_html(content_type: Optional[str]) -> bool:
     This function checks whether the provided Content-Type header value
     indicates that the HTTP response is HTML content.
 
-    :param Optional[str] content_type: 
+    :param Optional[str] content_type:
     :return bool : is_html
     :exception na : na
     :note na
