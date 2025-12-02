@@ -6,11 +6,8 @@
 #          web crawler for a single host.
 # ###########################################
 
-import sys
-import argparse
 import logging
 import time
-import json
 
 from typing import Dict, Any, Iterable, List, Set, Optional
 from urllib.parse import urlparse
@@ -34,7 +31,11 @@ def run(
     It fetches the seed, discovers internal links, and then fetches those links
     up to the specified maximum number of pages.
 
-    :param seed: str
+    :param str seed: The seed URL to start crawling from.
+    :param int max_pages: Maximum number of pages to crawl (including seed).
+    :param float delay: Delay in seconds between requests.
+    :param int timeout: Timeout in seconds for HTTP requests.
+    :param int retries: Number of retries for HTTP requests.
     :return Iterable[Dict[str, object]] : crawl_rows
     :exception na : na
     :note na
