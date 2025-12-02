@@ -1,3 +1,10 @@
+# ###########################################
+# Name: Shayene Johnson
+# Assignment: 8
+# Purpose: Tester for parse.py
+#          parse_page function
+# ###########################################
+
 from minicrawler.parse import parse_page
 
 def test_parse_page_extracts_title_and_internal_link() -> None:
