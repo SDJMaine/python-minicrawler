@@ -7,3 +7,8 @@
 !tests
 !tests/**
 !README.md
+
+# But still ignore Python bytecode/cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
