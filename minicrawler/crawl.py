@@ -24,8 +24,7 @@ def run(
         max_pages: int,
         delay: float,
         timeout: int,
-        retries: int,
-) -> Iterable[Dict[str, object]]:
+        retries: int, ) -> Iterable[Dict[str, object]]:
     """
     This function performs a depth-1 crawl starting from the given seed URL.
     It fetches the seed, discovers internal links, and then fetches those links
