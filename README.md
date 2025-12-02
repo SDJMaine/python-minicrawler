@@ -1,12 +1,14 @@
 # 🕸️ MiniCrawler
 
 A tiny, polite, single-file **depth-1 web crawler** written in Python.  
+
 MiniCrawler crawls one website starting from a **seed URL**, visits that page and its **first-level internal links**, extracts basic information (title, links, and status), and writes the results to an **NDJSON file** (newline-delimited JSON).
+The crawler is implemented as a **modular package** in the `minicrawler/` directory and is run from the **project root**.
 
 ---
 
 ## 🚀 Features
-- Crawls one host only (no external links)
+- Crawls one host only (no external domains)
 - Visits seed + direct internal links (depth-1)
 - Respects a delay between requests
 - Retries failed connections (configurable)
@@ -22,14 +24,16 @@ MiniCrawler crawls one website starting from a **seed URL**, visits that page an
 
 ## 🧭 Usage
 
+All commands below are run from the **project root** (where `README.md` and `requirements.txt` live)
+
 ### 1️⃣ Basic command
 ```bash
-python crawl.py crawl --seed https://example.com
+python -m minicrawler.cli crawl --seed https://example.com/
 ```
 
 This will:
 - Start crawling `https://example.com`
-- Visit the seed page and its first-level internal links
+- Visit the seed page and its first-level internal links (same host only)
 - Save results to `data.ndjson` in the current folder
 
 ---
@@ -47,7 +51,7 @@ This will:
 
 Example with all options:
 ```bash
-python crawl.py crawl   --seed https://example.com   --out results.ndjson   --max-pages 20   --delay 0.3   --timeout 10   --retries 2   --log-level DEBUG
+python -m minicrawler.cli crawl   --seed https://example.com   --out results.ndjson   --max-pages 20   --delay 0.3   --timeout 10   --retries 2   --log-level DEBUG
 ```
 
 ---
@@ -67,6 +71,8 @@ Each line of the output file is a JSON object:
 }
 ```
 
+
+
 ---
 
 ## ⚙️ Requirements
@@ -81,6 +87,22 @@ pip install requests beautifulsoup4
 Optionally, to match the testing environment:
 ```bash
 pip install pytest responses
+```
+
+---
+## 🧪 Running Tests
+
+Tests live in the tests package and use pytest. 
+To run tests, from the project root:
+
+```bash
+pytest 
+```
+or individual files:
+```bash
+pytest tests/test_crawler.py
+pytest tests/test_fetch.py
+pytest tests/test_parse.py
 ```
 
 ---
@@ -101,10 +123,22 @@ pip install pytest responses
 
 ---
 
-## 🧩 File summary
+## 🧩 File summary and structure
 ```
-crawl.py       # Single-file implementation of the crawler
-data.ndjson    # Default output (created after running)
+minicrawler/     # Main package
+  __init__.py     # Package initializer
+  cli.py          # Command-line interface
+  crawler.py      # Crawler logic
+  fetch.py        # HTTP fetching with retries and timeouts
+  parse.py        # HTML parsing and link extraction
+tests/           # Unit tests
+  __init__.py      # Test package initializer
+  test_crawler.py   # Tests for crawler.py
+  test_fetch.py     # Tests for fetch.py
+  test_parse.py     # Tests for parse.py
+requirements.txt # Required libraries
+README.md        # This file
+data.ndjson      # Default output (created after running)
 ```
 
 ---
