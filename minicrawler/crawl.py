@@ -12,12 +12,12 @@ import logging
 import time
 import json
 
-from typing import Iterator, Dict, Any, Iterable, List, Set, Optional
+from typing import Dict, Any, Iterable, List, Set, Optional
 from urllib.parse import urlparse
-from contextlib import contextmanager
 
 from .fetch import http_get
 from .parse import parse_page, _normalize_url
+from .persist import open_writer, write_row
 
 HTML_MIME_PREFIXES = ("text/html", "application/xhtml+xml")
 
@@ -26,16 +26,9 @@ DEFAULT_DELAY_SECONDS = 0.2
 DEFAULT_TIMEOUT_SECONDS = 5
 DEFAULT_RETRIES_COUNT = 1
 
-STATUS_MIN_SUCCESS = 200
-STATUS_MAX_SUCCESS = 299
-STATUS_MIN_SERVER_ERROR = 500
-STATUS_MAX_SERVER_ERROR = 599
-STATUS_NONE = 0
-
 INTERNAL_LINK_LIMIT = 5
 MIN_PAGES_ALLOWED = 1
 SLEEP_MIN_DELAY = 0.0
-
 
 def _build_parser() -> argparse.ArgumentParser:
     """
@@ -97,102 +90,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Logging level (DEBUG, INFO, WARNING, ERROR)",
     )
     return parser
-
-class _NDJSONWriter:
-    """
-    This class provides a simple NDJSON writer that writes
-    one JSON object per line to the provided file handle.
-
-    :param na: na
-    :return na : na
-    :exception na : na
-    :note na
-    """
-
-    ######################
-    # Public and Private
-    ######################
-
-    # **********************
-    # Constructors/Destructor
-    # **********************
-
-    def __init__(self, fh) -> None:
-        """
-        This function initializes the NDJSON writer with an
-        already-open file handle for output.
-
-        :param fh: object
-        :return None : na
-        :exception na : na
-        :note na
-        """
-        self.fh = fh
-
-    # **********************
-    # Getters/Accessors
-    # **********************
-
-    # (No explicit getters needed for this simple helper class.)
-
-    # **********************
-    # Setters/Mutators
-    # **********************
-
-    # (No explicit setters needed for this simple helper class.)
-
-    # **********************
-    # Printing Methods
-    # **********************
-
-    def write_row(self, row: Dict[str, Any]) -> None:
-        """
-        This function writes a single dictionary as a JSON object
-        on one line of the NDJSON output file.
-
-        :param row: Dict[str, Any]
-        :return None : na
-        :exception na : na
-        :note na
-        """
-        self.fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-
-
-@contextmanager
-def open_writer(path: str) -> Iterator[object]:
-    """
-    This function is a context manager that opens a file for NDJSON output
-    and yields an NDJSON writer object with a write_row(row: dict) method.
-
-    :param path: str
-    :return Iterator[object] : writer_iterator
-    :exception na : na
-    :note na
-    """
-    mode = "w"
-    encoding = "utf-8"
-    newline_setting = ""
-    with open(path, mode, encoding=encoding, newline=newline_setting) as fh:
-        writer = _NDJSONWriter(fh)
-        yield writer
-
-
-def write_row(writer: object, row: Dict[str, Any]) -> None:
-    """
-    This function is a thin wrapper that writes a row using the provided writer,
-    without requiring the caller to depend on the concrete writer class.
-
-    :param object writer:
-    :param Dict[str, Any] row:
-    :return None : na
-    :exception na : na
-    :note na
-    """
-    if hasattr(writer, "write_row"):
-        writer.write_row(row)
-    else:
-        raise TypeError("Writer does not support write_row(row).")
-
 
 def run(
         seed: str,
