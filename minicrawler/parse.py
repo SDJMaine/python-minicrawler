@@ -45,7 +45,8 @@ def _same_host(url: str, seed_netloc: str) -> bool:
     a given URL has the same host
     (netloc) as the provided seed host.
 
-    :param url: str
+    :param str url :
+    :param str seed_netloc :
     :return bool : is_same_host
     :exception na : na
     :note na

@@ -26,7 +26,7 @@ class _NDJSONWriter:
         :exception na : na
         :note na
         """
-        self.fh = fh
+        self._fh = fh
 
     # **********************
     # Printing Methods
@@ -43,7 +43,7 @@ class _NDJSONWriter:
         :exception na : na
         :note na
         """
-        self.fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        self._fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 @contextmanager
 def open_writer(path: str) -> Iterator[object]:

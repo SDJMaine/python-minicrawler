@@ -38,7 +38,7 @@ def run(
     :param int retries: Number of retries for HTTP requests.
     :return Iterable[Dict[str, object]] : crawl_rows
     :exception na : na
-    :note: Yield mostly replaces the need for a return statement here.
+    :note : Yield mostly replaces the need for a return statement here.
     """
     if max_pages < MIN_PAGES_ALLOWED:
         return
