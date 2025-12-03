@@ -11,7 +11,6 @@ import argparse
 import logging
 
 from typing import Optional, List
-
 from .crawl import run
 from .persist import open_writer, write_row
 
@@ -22,8 +21,10 @@ DEFAULT_RETRIES_COUNT = 1
 
 def _build_parser() -> argparse.ArgumentParser:
     """
-    This function builds and returns the argument parser
-    for the tiny, polite, depth-1 web crawler command line application.
+    This function builds and
+    returns the argument parser
+    for the tiny, polite, depth-1
+    web crawler command line application.
 
     :param na: na
     :return argparse.ArgumentParser : parser
@@ -84,7 +85,8 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[List[str]] = None) -> int:
     """
     This function is the application driver
-    for a tiny, polite, depth-1 web crawler program that writes NDJSON output.
+    for a tiny, polite, depth-1
+    web crawler program that writes NDJSON output.
 
     :param argv: Optional[List[str]]
     :return int : status_code

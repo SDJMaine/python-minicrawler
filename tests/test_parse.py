@@ -9,8 +9,10 @@ from minicrawler.parse import parse_page
 
 def test_parse_page_extracts_title_and_internal_link() -> None:
     """
-    This function tests that parse_page correctly extracts
-    the page title and same-host internal links from HTML.
+    This function tests that
+    parse_page correctly extracts
+    the page title and same-host
+    internal links from HTML.
 
     :param na: na
     :return None: na

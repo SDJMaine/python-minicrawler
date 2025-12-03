@@ -12,8 +12,10 @@ from bs4 import BeautifulSoup
 
 def _normalize_url(url: str) -> str:
     """
-    This function normalizes a URL by dropping fragments, lowercasing the scheme
-    and netloc, stripping default ports, and removing trailing slashes when
+    This function normalizes a URL
+    by dropping fragments, lowercasing the scheme
+    and netloc, stripping default ports,
+    and removing trailing slashes when
     appropriate.
 
     :param str url:
@@ -39,7 +41,8 @@ def _normalize_url(url: str) -> str:
 
 def _same_host(url: str, seed_netloc: str) -> bool:
     """
-    This function checks whether a given URL has the same host
+    This function checks whether
+    a given URL has the same host
     (netloc) as the provided seed host.
 
     :param url: str
@@ -55,8 +58,10 @@ def _same_host(url: str, seed_netloc: str) -> bool:
 
 def _extract_title(soup: BeautifulSoup) -> Optional[str]:
     """
-    This function extracts and returns the page title from a BeautifulSoup
-    HTML document, or None if no usable title is found.
+    This function extracts and returns
+     the page title from a BeautifulSoup
+    HTML document, or None
+    if no usable title is found.
 
     :param BeautifulSoup soup:
     :return Optional[str] : title
@@ -73,8 +78,10 @@ def _extract_title(soup: BeautifulSoup) -> Optional[str]:
 
 def parse_page(html: str, base_url: str) -> Dict[str, object]:
     """
-    This function parses a single HTML page and returns the page title and
-    a list of internal links (same host as the base_url), normalized and deduplicated.
+    This function parses a single HTML page
+    and returns the page title and
+    a list of internal links (same host as the base_url),
+    normalized and deduplicated.
 
     :param str html:
     :param str base_url:

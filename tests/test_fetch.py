@@ -5,12 +5,14 @@
 #           function
 # ###########################################
 
-from minicrawler.fetch import _is_html, http_get
+from minicrawler.fetch import _is_html
 
 def test_is_html_recognizes_html_content_type() -> None:
     """
-    This function tests that _is_html correctly identifies
-    HTML Content-Type header values and rejects non-HTML
+    This function tests that
+    _is_html correctly identifies
+    HTML Content-Type header values
+    and rejects non-HTML
     or missing content types.
 
     :param na: na

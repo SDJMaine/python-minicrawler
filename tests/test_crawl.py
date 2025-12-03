@@ -11,8 +11,10 @@ from minicrawler.crawl import run
 
 def test_run_zero_max_pages_produces_no_results() -> None:
     """
-   This function tests that the crawl.run function
-   produces no results when max_pages is less than
+   This function tests that
+   the crawl.run function
+   produces no results
+   when max_pages is less than
    the minimum allowed value.
 
    :param na: na

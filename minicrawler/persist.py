@@ -10,6 +10,7 @@ from typing import Dict, Any, Iterator
 from contextlib import contextmanager
 
 class _NDJSONWriter:
+
     # **********************
     # Constructors/Destructor
     # **********************
@@ -33,7 +34,8 @@ class _NDJSONWriter:
 
     def write_row(self, row: Dict[str, Any]) -> None:
         """
-        This function writes a single dictionary as a JSON object
+        This function writes a
+        single dictionary as a JSON object
         on one line of the NDJSON output file.
 
         :param row: Dict[str, Any]
@@ -46,8 +48,10 @@ class _NDJSONWriter:
 @contextmanager
 def open_writer(path: str) -> Iterator[object]:
     """
-    This function is a context manager that opens a file for NDJSON output
-    and yields an NDJSON writer object with a write_row(row: dict) method.
+    This function is a context manager
+    that opens a file for NDJSON output
+    and yields an NDJSON writer object
+    with a write_row(row: dict) method.
 
     :param path: str
     :return Iterator[object] : writer_iterator
@@ -64,8 +68,10 @@ def open_writer(path: str) -> Iterator[object]:
 
 def write_row(writer: object, row: Dict[str, Any]) -> None:
     """
-    This function is a thin wrapper that writes a row using the provided writer,
-    without requiring the caller to depend on the concrete writer class.
+    This function is a thin wrapper that
+    writes a row using the provided writer,
+    without requiring the caller to depend
+    on the concrete writer class.
 
     :param object writer:
     :param Dict[str, Any] row:

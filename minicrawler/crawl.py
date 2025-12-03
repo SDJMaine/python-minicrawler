@@ -1,6 +1,5 @@
-#!.venv/bin/python3
 # ###########################################
-# Name: Alexander Katrompas
+# Name: Shayene Johnson
 # Assignment: 8
 # Purpose: A tiny, polite, depth-1
 #          web crawler for a single host.
@@ -26,18 +25,20 @@ def run(
         timeout: int,
         retries: int, ) -> Iterable[Dict[str, object]]:
     """
-    This function performs a depth-1 crawl starting from the given seed URL.
-    It fetches the seed, discovers internal links, and then fetches those links
+    This function performs a depth-1 crawl
+     starting from the given seed URL.
+    It fetches the seed, discovers internal links,
+     and then fetches those links
     up to the specified maximum number of pages.
 
-    :param str seed: The seed URL to start crawling from.
-    :param int max_pages: Maximum number of pages to crawl (including seed).
+    :param str seed: The seed URL to start crawling.
+    :param int max_pages: Maximum number of pages to crawl.
     :param float delay: Delay in seconds between requests.
     :param int timeout: Timeout in seconds for HTTP requests.
     :param int retries: Number of retries for HTTP requests.
     :return Iterable[Dict[str, object]] : crawl_rows
     :exception na : na
-    :note na
+    :note: Yield mostly replaces the need for a return statement here.
     """
     if max_pages < MIN_PAGES_ALLOWED:
         return
