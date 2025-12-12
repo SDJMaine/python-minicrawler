@@ -61,7 +61,7 @@ def run(
     candidates: List[str] = []
 
     if html:
-        parsed = parse_page(html, final_url)
+        parsed = parse_page(html, final_url, seed_host)
         title = parsed["title"]
         internal_links: List[str] = parsed["internal_links"]
 
@@ -115,7 +115,7 @@ def run(
                 child_links: List[str] = []
 
                 if html:
-                    parsed_child = parse_page(html, final_url)
+                    parsed_child = parse_page(html, final_url, seed_host)
                     title = parsed_child["title"]
                     all_internal_child: List[str] = parsed_child["internal_links"]
                     child_links = all_internal_child[:INTERNAL_LINK_LIMIT]

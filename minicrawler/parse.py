@@ -77,15 +77,15 @@ def _extract_title(soup: BeautifulSoup) -> Optional[str]:
     return title
 
 
-def parse_page(html: str, base_url: str) -> Dict[str, object]:
+def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     """
     This function parses a single HTML page
     and returns the page title and
-    a list of internal links (same host as the base_url),
-    normalized and deduplicated.
+    lists of internal links, external links,
 
     :param str html:
     :param str base_url:
+    :param str seed_netloc:
     :return Dict[str, object] : parsed_page_info
     :exception na : na
     :note na
@@ -93,19 +93,40 @@ def parse_page(html: str, base_url: str) -> Dict[str, object]:
     soup = BeautifulSoup(html, "html.parser")
     title = _extract_title(soup)
 
-    seed_netloc = urlparse(base_url).netloc
-    seen: Set[str] = set()
+    seen_internal: Set[str] = set()
+    seen_external: Set[str] = set()
     internal: List[str] = []
+    external: List[str] = []
 
     anchors = soup.find_all("a", href=True)
-    for anchor in anchors:
+    anchor_index = 0
+    anchor_count = len(anchors)
+
+    while anchor_index < anchor_count:
+        anchor = anchors[anchor_index]
         raw = anchor.get("href")
+
+        # Defensive: skip missing/empty hrefs
+        if not raw:
+            anchor_index = anchor_index + 1
+            continue
+
+
         abs_url = urljoin(base_url, raw)
         normalized_url = _normalize_url(abs_url)
         if _same_host(normalized_url, seed_netloc):
-            if normalized_url not in seen:
-                seen.add(normalized_url)
+            if normalized_url not in seen_internal:
+                seen_internal.add(normalized_url)
                 internal.append(normalized_url)
+        else:
+            if normalized_url not in seen_external:
+                seen_external.add(normalized_url)
+                external.append(normalized_url)
+        anchor_index = anchor_index + 1
 
-    parsed_page_info = {"title": title, "internal_links": internal}
+    parsed_page_info = {
+        "title": title,
+        "internal_links": internal,
+        "external_links": external,
+    }
     return parsed_page_info
