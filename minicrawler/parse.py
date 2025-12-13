@@ -6,9 +6,14 @@
 #          to extract links and titles
 # ###########################################
 
+import re
+
 from typing import Dict, List, Optional, Set
 from urllib.parse import urljoin, urlparse, urlunparse
 from bs4 import BeautifulSoup
+
+EMAIL_PATTERN = r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"
+EMAIL_REGEX = re.compile(EMAIL_PATTERN)
 
 def _normalize_url(url: str) -> str:
     """
@@ -76,12 +81,44 @@ def _extract_title(soup: BeautifulSoup) -> Optional[str]:
             title = raw_title
     return title
 
+def _extract_emails(soup: BeautifulSoup) -> List[str]:
+    """
+    This function extracts and returns
+    a list of unique email addresses
+    found in the HTML document.
+
+    :param BeautifulSoup soup:
+    :return List[str] : emails
+    :exception na : na
+    :note na
+    """
+    emails_set: Set[str] = set()
+
+    anchors = soup.find_all("a", href=True)
+
+    for anchor in anchors:
+        href_value = anchor.get("href")
+
+        if href_value and href_value.startswith("mailto:"):
+            email_part = href_value[len("mailto:"):]
+            email_clean = email_part.split("?", 1)[0].strip()
+
+            if email_clean:
+                emails_set.add(email_clean)
+
+    text = soup.get_text(" ", strip=True)
+    for match in EMAIL_REGEX.findall(text):
+        emails_set.add(match)
+
+    emails = list(emails_set)
+    return emails
 
 def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     """
     This function parses a single HTML page
     and returns the page title and
     lists of internal links, external links,
+    and email addresses.
 
     :param str html:
     :param str base_url:
@@ -111,7 +148,6 @@ def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
             anchor_index = anchor_index + 1
             continue
 
-
         abs_url = urljoin(base_url, raw)
         normalized_url = _normalize_url(abs_url)
         if _same_host(normalized_url, seed_netloc):
@@ -124,9 +160,13 @@ def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
                 external.append(normalized_url)
         anchor_index = anchor_index + 1
 
+    emails = _extract_emails(soup)
+
     parsed_page_info = {
         "title": title,
         "internal_links": internal,
         "external_links": external,
+        "emails": emails,
     }
     return parsed_page_info
+
