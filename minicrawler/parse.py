@@ -166,21 +166,25 @@ def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     for anchor in anchors:
         raw = anchor.get("href")
 
-        # Defensive: skip missing/empty hrefs
-        if not raw:
-            continue
+        is_valid = (
+                raw is not None
+                and raw != ""
+                and not raw.startswith("mailto:")
+                and not raw.lower().startswith("javascript:")
+        )
 
-        abs_url = urljoin(base_url, raw)
-        normalized_url = _normalize_url(abs_url)
+        if is_valid:
+            abs_url = urljoin(base_url, raw)
+            normalized_url = _normalize_url(abs_url)
 
-        if _same_host(normalized_url, seed_netloc):
-            if normalized_url not in seen_internal:
-                seen_internal.add(normalized_url)
-                internal.append(normalized_url)
-        else:
-            if normalized_url not in seen_external:
-                seen_external.add(normalized_url)
-                external.append(normalized_url)
+            if _same_host(normalized_url, seed_netloc):
+                if normalized_url not in seen_internal:
+                    seen_internal.add(normalized_url)
+                    internal.append(normalized_url)
+            else:
+                if normalized_url not in seen_external:
+                    seen_external.add(normalized_url)
+                    external.append(normalized_url)
 
     emails = _extract_emails(soup)
     images = _extract_images(soup, base_url)
