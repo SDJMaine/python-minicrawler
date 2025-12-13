@@ -144,6 +144,37 @@ def _build_parser() -> argparse.ArgumentParser:
         default="INFO",
         help="Logging level (DEBUG, INFO, WARNING, ERROR)",
     )
+    instagram = subparsers.add_parser(
+        "instagram",
+        help="Fetch primary image and metadata from an Instagram post URL.",
+    )
+    instagram.add_argument(
+        "--url",
+        required=True,
+        help="Instagram post URL (https://www.instagram.com/p/.../).",
+    )
+    instagram.add_argument(
+        "--out",
+        default="instagram.ndjson",
+        help="Output file (default: instagram.ndjson)",
+    )
+    instagram.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help="HTTP timeout seconds (default: 5)",
+    )
+    instagram.add_argument(
+        "--retries",
+        type=int,
+        default=DEFAULT_RETRIES_COUNT,
+        help="Retries on timeout/5xx (default: 1)",
+    )
+    instagram.add_argument(
+        "--log-level",
+        default="INFO",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR)",
+    )
     return parser
 
 def main(argv: Optional[List[str]] = None) -> int:
