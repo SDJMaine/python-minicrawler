@@ -11,7 +11,7 @@ import argparse
 import logging
 
 from typing import Optional, List
-from .crawl import run
+from .crawl import run, scrape_run
 from .persist import open_writer, write_row
 
 DEFAULT_MAX_PAGES = 50
@@ -34,7 +34,7 @@ def _build_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog="crawler",
-        description="A tiny, polite, depth-1 web crawler for a single host.",
+        description="A tiny, polite web crawler and scraper.",
     )
     subparsers = parser.add_subparsers(dest="cmd", required=True)
 
@@ -87,6 +87,62 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_DEPTH,
         choices=[1, 2, 3],
         help="Maximum crawl depth (1, 2, or 3; default: 1)",
+    )
+    scrape = subparsers.add_parser(
+        "scrape",
+        help="Scrape emails, offsite links, or images up to a given depth.",
+    )
+    scrape.add_argument(
+        "--seed",
+        required=True,
+        help="Seed URL, e.g. https://example.com/",
+    )
+    scrape.add_argument(
+        "--out",
+        default="scrape.ndjson",
+        help="Output file (default: scrape.ndjson)",
+    )
+    scrape.add_argument(
+        "--max-pages",
+        type=int,
+        default=DEFAULT_MAX_PAGES,
+        help="Total pages including seed (default: 50)",
+    )
+    scrape.add_argument(
+        "--delay",
+        type=float,
+        default=DEFAULT_DELAY_SECONDS,
+        help="Delay seconds between requests (default: 0.2)",
+    )
+    scrape.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help="HTTP timeout seconds (default: 5)",
+    )
+    scrape.add_argument(
+        "--retries",
+        type=int,
+        default=DEFAULT_RETRIES_COUNT,
+        help="Retries on timeout/5xx (default: 1)",
+    )
+    scrape.add_argument(
+        "--depth",
+        type=int,
+        default=DEFAULT_DEPTH,
+        choices=[1, 2, 3],
+        help="Maximum crawl depth (1, 2, or 3; default: 1)",
+    )
+    scrape.add_argument(
+        "--target",
+        required=True,
+        choices=["emails", "offsite", "images"],
+        help="Scrape target: emails, offsite, or images.",
+    )
+    scrape.add_argument(
+        "--log-level",
+        default="INFO",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR)",
     )
     return parser
 
