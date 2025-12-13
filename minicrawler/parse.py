@@ -225,3 +225,98 @@ def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     }
     return parsed_page_info
 
+def parse_instagram_post(html: str, url: str, status: int) -> Dict[str, object]:
+    """
+    This function parses an Instagram post page
+    and returns basic information including:
+    title, description, primary image URL, and
+    the poster's username when available.
+
+    :param str html:
+    :param str url:
+    :param int status:
+    :return Dict[str, object] : instagram_post_info
+    :exception na : na
+    :note na
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Fallback HTML <title> (usually just "Instagram")
+    title: Optional[str] = None
+    if soup.title and soup.title.string:
+        raw_title = soup.title.string.strip()
+        if raw_title:
+            title = raw_title
+
+    # Description from Open Graph meta (likes + caption, etc.)
+    description: Optional[str] = None
+    og_desc = soup.find("meta", attrs={"property": "og:description"})
+    if og_desc and og_desc.get("content"):
+        desc_text = og_desc.get("content").strip()
+        if desc_text:
+            description = desc_text
+
+    # Main image URL from Open Graph meta
+    image_url: Optional[str] = None
+    og_img = soup.find("meta", attrs={"property": "og:image"})
+    if og_img and og_img.get("content"):
+        img_text = og_img.get("content").strip()
+        if img_text:
+            image_url = img_text
+
+            # Username extraction
+    username: Optional[str] = None
+
+    # 1) Prefer extracting the handle from og:description
+    #    Patterns:
+    #      "..., N comments - handle on <date>: ..."
+    #      "handle on <date>: ..."
+    if description:
+        # pattern with a preceding dash: "- handle on ..."
+        match = re.search(r"-\s*([A-Za-z0-9_.]+)\s+on\b", description)
+        if match:
+            candidate = match.group(1).strip()
+            if candidate:
+                username = candidate
+
+        # if still None, pattern at the start: "handle on ..."
+        if username is None:
+            match = re.search(r"^([A-Za-z0-9_.]+)\s+on\b", description)
+            if match:
+                candidate = match.group(1).strip()
+                if candidate:
+                    username = candidate
+
+    # 2) If not found in description, fall back to og:title
+    og_title = soup.find("meta", attrs={"property": "og:title"})
+    og_title_content: Optional[str] = None
+    if og_title and og_title.get("content"):
+        og_title_content = og_title.get("content").strip()
+
+    if username is None and og_title_content:
+        raw_og_title = og_title_content
+
+        # Pattern like "Display Name (@handle) • Instagram photos ..."
+        paren_match = re.search(r"\(@([A-Za-z0-9_.]+)\)", raw_og_title)
+        if paren_match:
+            username = paren_match.group(1)
+        else:
+            # If og:title is itself a simple handle (no spaces/specials),
+            # treat it as the username; otherwise, leave it as None.
+            if re.fullmatch(r"[A-Za-z0-9_.]+", raw_og_title):
+                username = raw_og_title
+
+                # Last fallback for title, if it remained None
+    if title is None:
+        title = "Instagram"
+
+    instagram_post_info: Dict[str, object] = {
+        "kind": "instagram_post",
+        "url": url,
+        "status": status,
+        "title": title,
+        "description": description,
+        "image_url": image_url,
+        "username": username,
+    }
+    return instagram_post_info
