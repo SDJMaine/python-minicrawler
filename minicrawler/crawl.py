@@ -175,3 +175,77 @@ def run(
             "n_images": len(page_info["images"]),
         }
         yield row
+
+def scrape_run(
+        seed: str,
+        max_pages: int,
+        delay: float,
+        timeout: int,
+        retries: int,
+        depth: int,
+        target: str,
+) -> Iterable[Dict[str, object]]:
+    """
+    This function performs a depth-limited crawl
+    and yields scraped items based on the target:
+    emails, offsite links, or images.
+
+    :param str seed: Seed URL to start scraping from.
+    :param int max_pages: Maximum number of pages to crawl.
+    :param float delay: Delay in seconds between requests.
+    :param int timeout: Timeout in seconds for HTTP requests.
+    :param int retries: Number of retries for HTTP requests.
+    :param int depth: Maximum depth to follow links.
+    :param str target: Scrape target: emails, offsite, or images.
+    :return Iterable[Dict[str, object]] : scrape_rows
+    :exception na : na
+    :note na
+    """
+    seen_emails: Set[str] = set()
+    seen_offsite: Set[str] = set()
+    seen_images: Set[str] = set()
+
+    for page_info in _crawl_pages(
+            seed=seed,
+            max_pages=max_pages,
+            delay=delay,
+            timeout=timeout,
+            retries=retries,
+            depth=depth,
+    ):
+        page_url = page_info["url"]
+        if target == "emails":
+            emails = page_info["emails"]
+            for email in emails:
+                if email not in seen_emails:
+                    seen_emails.add(email)
+                    row = {
+                        "kind": "email",
+                        "value": email,
+                        "source_url": page_url,
+                    }
+                    yield row
+        elif target == "offsite":
+            external_links = page_info["external_links"]
+            for link in external_links:
+                if link not in seen_offsite:
+                    seen_offsite.add(link)
+                    row = {
+                        "kind": "offsite_link",
+                        "value": link,
+                        "source_url": page_url,
+                    }
+                    yield row
+
+        elif target == "images":
+            images = page_info["images"]
+
+            for img_url in images:
+                if img_url not in seen_images:
+                    seen_images.add(img_url)
+                    row = {
+                        "kind": "image",
+                        "value": img_url,
+                        "source_url": page_url,
+                    }
+                    yield row
