@@ -14,7 +14,7 @@ from typing import Optional, List
 from .crawl import run, scrape_run
 from .fetch import http_get
 from .parse import parse_instagram_post
-from .persist import open_writer, write_row
+from .persist import open_writer, write_row, summarize_file
 
 DEFAULT_MAX_PAGES = 50
 DEFAULT_DELAY_SECONDS = 0.2
@@ -146,6 +146,22 @@ def _build_parser() -> argparse.ArgumentParser:
         default="INFO",
         help="Logging level (DEBUG, INFO, WARNING, ERROR)",
     )
+
+    summary = subparsers.add_parser(
+        "summary",
+        help="Print a summary for an NDJSON file produced by this application.",
+    )
+    summary.add_argument(
+        "--file",
+        required=True,
+        help="Path to NDJSON file to summarize.",
+    )
+    summary.add_argument(
+        "--log-level",
+        default="INFO",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR)",
+    )
+
     instagram = subparsers.add_parser(
         "instagram",
         help="Fetch primary image and metadata from an Instagram post URL.",
@@ -246,6 +262,21 @@ def main(argv: Optional[List[str]] = None) -> int:
                 write_row(writer, row)
                 count += 1
         logging.info("Done scrape. Wrote %d rows to %s", count, args.out)
+
+
+    elif args.cmd == "summary":
+        summary_info = summarize_file(args.file)
+        print("Summary for:", args.file)
+        print("Total rows:", summary_info["total_rows"])
+        print("Unique URLs:", summary_info["unique_urls"])
+        print("2xx statuses:", summary_info["status_2xx"])
+        print("3xx statuses:", summary_info["status_3xx"])
+        print("4xx statuses:", summary_info["status_4xx"])
+        print("5xx statuses:", summary_info["status_5xx"])
+        print("Total internal links:", summary_info["total_internal_links"])
+        print("Total external links:", summary_info["total_external_links"])
+        print("Total emails:", summary_info["total_emails"])
+        print("Total images:", summary_info["total_images"])
 
     elif args.cmd == "instagram":
         logging.info("Fetching Instagram post image from %s", args.url)
