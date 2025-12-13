@@ -1,9 +1,9 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: 8
+# Assignment: Final Project
 # Purpose: Parse module for the web crawler
-#          Parses HTML pages
-#          to extract links and titles
+#          Parses HTML pages to extract
+#          links, emails, images, and titles
 # ###########################################
 
 import re
@@ -141,8 +141,9 @@ def _extract_images(soup: BeautifulSoup, base_url: str) -> List[str]:
 def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     """
     This function parses a single HTML page
-    and returns the page title and
-    lists of internal links, external links,
+    and returns the page title
+    and lists of internal links,
+    external links,
     and email addresses.
 
     :param str html:
