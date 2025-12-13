@@ -60,12 +60,14 @@ def run(
     title: Optional[str] = None
     candidates: List[str] = []
     emails: List[str] = []
+    images: List[str] = []
 
     if html:
         parsed = parse_page(html, final_url, seed_host)
         title = parsed["title"]
         internal_links: List[str] = parsed["internal_links"]
         emails = parsed["emails"]
+        images = parsed["images"]
 
         all_internal: List[str] = []
         for internal_url in internal_links:
@@ -93,6 +95,7 @@ def run(
         "n_internal_links": len(links if html else []),
         "links": links if html else [],
         "emails": emails,
+        "image_url": images,
     }
 
     if max_pages > MIN_PAGES_ALLOWED:
@@ -123,6 +126,7 @@ def run(
                     title = parsed_child["title"]
                     all_internal_child: List[str] = parsed_child["internal_links"]
                     emails = parsed_child["emails"]
+                    images = parsed_child["images"]
                     child_links = all_internal_child[:INTERNAL_LINK_LIMIT]
 
                 yield {
@@ -132,5 +136,6 @@ def run(
                     "n_internal_links": len(child_links),
                     "links": child_links,
                     "emails": emails,
+                    "image_url": images,
                 }
                 taken += 1

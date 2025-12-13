@@ -113,6 +113,31 @@ def _extract_emails(soup: BeautifulSoup) -> List[str]:
     emails = list(emails_set)
     return emails
 
+def _extract_images(soup: BeautifulSoup, base_url: str) -> List[str]:
+    """
+    This function extracts and returns
+    a list of unique normalized image URLs
+    from img tags in the HTML document.
+
+    :param BeautifulSoup soup:
+    :param str base_url:
+    :return List[str] : image_urls
+    :exception na : na
+    :note na
+    """
+    images_set: Set[str] = set()
+    img_tags = soup.find_all("img", src=True)
+
+    for img_tag in img_tags:
+        src_value = img_tag.get("src")
+        if src_value:
+            abs_url = urljoin(base_url, src_value)
+            normalized_url = _normalize_url(abs_url)
+            images_set.add(normalized_url)
+
+    images = list(images_set)
+    return images
+
 def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     """
     This function parses a single HTML page
@@ -161,12 +186,14 @@ def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
         anchor_index = anchor_index + 1
 
     emails = _extract_emails(soup)
+    images = _extract_images(soup, base_url)
 
     parsed_page_info = {
         "title": title,
         "internal_links": internal,
         "external_links": external,
         "emails": emails,
+        "images": images,
     }
     return parsed_page_info
 
