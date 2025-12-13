@@ -9,6 +9,15 @@ import json
 from typing import Dict, Any, Iterator
 from contextlib import contextmanager
 
+STATUS_2XX_MIN = 200
+STATUS_2XX_MAX = 299
+STATUS_3XX_MIN = 300
+STATUS_3XX_MAX = 399
+STATUS_4XX_MIN = 400
+STATUS_4XX_MAX = 499
+STATUS_5XX_MIN = 500
+STATUS_5XX_MAX = 599
+
 class _NDJSONWriter:
 
     # **********************
@@ -83,3 +92,78 @@ def write_row(writer: object, row: Dict[str, Any]) -> None:
         writer.write_row(row)
     else:
         raise TypeError("Writer does not support write_row(row).")
+
+def summarize_file(path: str) -> Dict[str, int]:
+    """
+    This function summarizes an NDJSON file
+    produced by the crawler / scraper.
+
+    :param str path:
+    :return Dict[str, int] : summary_info
+    :exception na : na
+    :note na
+    """
+    total_rows = 0
+    unique_urls = set()
+    status_2xx = status_3xx = status_4xx = status_5xx = 0
+    total_internal_links = 0
+    total_external_links = 0
+    total_emails = 0
+    total_images = 0
+
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+
+            if line:
+                total_rows += 1
+                row = json.loads(line)
+
+                url = row.get("url")
+                if url:
+                    unique_urls.add(url)
+
+                status = row.get("status")
+                if isinstance(status, int):
+                    if STATUS_2XX_MIN <= status <= STATUS_2XX_MAX:
+                        status_2xx += 1
+                    elif STATUS_3XX_MIN <= status <= STATUS_3XX_MAX:
+                        status_3xx += 1
+                    elif STATUS_4XX_MIN <= status <= STATUS_4XX_MAX:
+                        status_4xx += 1
+                    elif STATUS_5XX_MIN <= status <= STATUS_5XX_MAX:
+                        status_5xx += 1
+
+                internal = row.get("internal_links", [])
+                external = row.get("external_links", [])
+                if isinstance(internal, list):
+                    total_internal_links += len(internal)
+                if isinstance(external, list):
+                    total_external_links += len(external)
+
+                emails = row.get("emails", [])
+                if isinstance(emails, list):
+                    total_emails += len(emails)
+
+                image_count = 0
+                images = row.get("images")
+                if isinstance(images, list):
+                    image_count += len(images)
+                if row.get("kind") == "image" and row.get("value"):
+                    image_count += 1
+                if row.get("kind") == "instagram_post" and row.get("image_url"):
+                    image_count += 1
+                total_images += image_count
+
+    return {
+        "total_rows": total_rows,
+        "unique_urls": len(unique_urls),
+        "status_2xx": status_2xx,
+        "status_3xx": status_3xx,
+        "status_4xx": status_4xx,
+        "status_5xx": status_5xx,
+        "total_internal_links": total_internal_links,
+        "total_external_links": total_external_links,
+        "total_emails": total_emails,
+        "total_images": total_images,
+    }
