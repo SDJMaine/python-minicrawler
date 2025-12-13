@@ -168,23 +168,55 @@ def main(argv: Optional[List[str]] = None) -> int:
         level=getattr(logging, args.log_level.upper(), logging.INFO),
     )
 
-    logging.info("Starting crawl seed=%s max_pages=%d", args.seed, args.max_pages)
-    count = 0
+    status_code = 0
 
-    with open_writer(args.out) as writer:
-        for row in run(
-                seed=args.seed,
-                max_pages=args.max_pages,
-                delay=args.delay,
-                timeout=args.timeout,
-                retries=args.retries,
-                depth=args.depth,
-        ):
-            write_row(writer, row)
-            count += 1
+    if args.cmd == "crawl":
+        logging.info(
+            "Starting crawl seed=%s max_pages=%d depth=%d",
+            args.seed,
+            args.max_pages,
+            args.depth,
+        )
+        count = 0
+        with open_writer(args.out) as writer:
+            for row in run(
+                    seed=args.seed,
+                    max_pages=args.max_pages,
+                    delay=args.delay,
+                    timeout=args.timeout,
+                    retries=args.retries,
+                    depth=args.depth,
+            ):
+                write_row(writer, row)
+                count += 1
+        logging.info("Done crawl. Wrote %d rows to %s", count, args.out)
 
-    logging.info("Done. Wrote %d rows to %s", count, args.out)
-    return 0
+    elif args.cmd == "scrape":
+        logging.info(
+            "Starting scrape seed=%s target=%s max_pages=%d depth=%d",
+            args.seed,
+            args.target,
+            args.max_pages,
+            args.depth,
+        )
+        count = 0
+        with open_writer(args.out) as writer:
+            for row in scrape_run(
+                    seed=args.seed,
+                    max_pages=args.max_pages,
+                    delay=args.delay,
+                    timeout=args.timeout,
+                    retries=args.retries,
+                    depth=args.depth,
+                    target=args.target,
+            ):
+                write_row(writer, row)
+                count += 1
+        logging.info("Done scrape. Wrote %d rows to %s", count, args.out)
+
+
+
+    return status_code
 
 
 if __name__ == "__main__":
