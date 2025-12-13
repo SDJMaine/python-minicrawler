@@ -7,8 +7,9 @@
 
 import logging
 import time
+from collections import deque
 
-from typing import Dict, Any, Iterable, List, Set, Optional
+from typing import Dict, Iterable, List, Set, Optional, Iterator, Tuple
 from urllib.parse import urlparse
 
 from .fetch import http_get
@@ -18,124 +19,159 @@ INTERNAL_LINK_LIMIT = 5
 MIN_PAGES_ALLOWED = 1
 SLEEP_MIN_DELAY = 0.0
 
+MIN_DEPTH = 1
+MAX_DEPTH = 3
+
+def _crawl_pages(
+        seed: str,
+        max_pages: int,
+        delay: float,
+        timeout: int,
+        retries: int,
+        depth: int,
+) -> Iterator[Dict[str, object]]:
+    """
+    This function performs a breadth-first crawl
+    starting from the given seed URL.
+    It follows same-host links up to the specified depth
+    and yields page metadata and parsed content.
+
+    :param str seed: Seed URL to start crawling.
+    :param int max_pages: Maximum number of pages to crawl.
+    :param float delay: Delay in seconds between requests.
+    :param int timeout: Timeout in seconds for HTTP requests.
+    :param int retries: Number of retries for HTTP requests.
+    :param int depth: Maximum depth to follow links (1 to 3).
+    :return Iterator[Dict[str, object]] : page_info_iterator
+    :exception na : na
+    :note na
+    """
+    pages_yielded = 0
+
+    if max_pages < MIN_PAGES_ALLOWED:
+        return
+
+    if depth < MIN_DEPTH:
+        depth = MIN_DEPTH
+    if depth > MAX_DEPTH:
+        depth = MAX_DEPTH
+
+    seed_normalized = _normalize_url(seed)
+    seed_host = urlparse(seed_normalized).netloc
+
+    queue: deque[Tuple[str, int]] = deque()
+    queue.append((seed_normalized, 0))
+    seen_urls: Set[str] = set()
+    seen_urls.add(seed_normalized)
+
+    has_made_request = False
+    queue_has_items = len(queue) > 0
+
+    while queue_has_items and pages_yielded < max_pages:
+        current_url, level = queue[0]
+        queue.popleft()
+
+        if has_made_request:
+            sleep_delay = max(SLEEP_MIN_DELAY, delay)
+            time.sleep(sleep_delay)
+
+        logging.info("Fetching url=%s level=%d", current_url, level)
+        status, final_url, html = http_get(
+            current_url,
+            timeout=timeout,
+            retries=retries,
+        )
+        has_made_request = True
+
+        title: Optional[str] = None
+        internal_links: List[str] = []
+        external_links: List[str] = []
+        emails: List[str] = []
+        images: List[str] = []
+
+        if html:
+            parsed = parse_page(html, final_url, seed_host)
+            title = parsed["title"]
+            internal_links = parsed["internal_links"]
+            external_links = parsed["external_links"]
+            emails = parsed["emails"]
+            images = parsed["images"]
+
+            if level < depth - 1:
+                new_links: List[str] = []
+                link_index = 0
+                total_links = len(internal_links)
+                while link_index < total_links:
+                    link_url = internal_links[link_index]
+                    if link_url not in seen_urls:
+                        seen_urls.add(link_url)
+                        new_links.append(link_url)
+                    link_index = link_index + 1
+
+                for new_url in new_links:
+                    queue.append((new_url, level + 1))
+
+        page_info = {
+            "url": final_url,
+            "status": status,
+            "title": title,
+            "internal_links": internal_links,
+            "external_links": external_links,
+            "emails": emails,
+            "images": images,
+            "level": level,
+        }
+        yield page_info
+        pages_yielded = pages_yielded + 1
+        queue_has_items = len(queue) > 0
+
 def run(
         seed: str,
         max_pages: int,
         delay: float,
         timeout: int,
-        retries: int, ) -> Iterable[Dict[str, object]]:
+        retries: int,
+        depth: int,
+) -> Iterable[Dict[str, object]]:
     """
-    This function performs a depth-1 crawl
-     starting from the given seed URL.
-    It fetches the seed, discovers internal links,
-     and then fetches those links
-    up to the specified maximum number of pages.
+    This function performs a depth-limited crawl
+    starting from the given seed URL.
+    It fetches pages and yields summary rows
+    suitable for NDJSON output.
 
     :param str seed: The seed URL to start crawling.
     :param int max_pages: Maximum number of pages to crawl.
     :param float delay: Delay in seconds between requests.
     :param int timeout: Timeout in seconds for HTTP requests.
     :param int retries: Number of retries for HTTP requests.
+    :param int depth: Maximum depth to follow links.
     :return Iterable[Dict[str, object]] : crawl_rows
     :exception na : na
-    :note : Yield mostly replaces the need for a return statement here.
+    :note na
     """
-    if max_pages < MIN_PAGES_ALLOWED:
-        return
+    for page_info in _crawl_pages(
+            seed=seed,
+            max_pages=max_pages,
+            delay=delay,
+            timeout=timeout,
+            retries=retries,
+            depth=depth,
+    ):
+        internal_links = page_info["internal_links"]
+        limited_links = internal_links[:INTERNAL_LINK_LIMIT]
 
-    seed_normalized = _normalize_url(seed)
-    seed_host = urlparse(seed_normalized).netloc
-
-    fetched: Set[str] = set()
-
-    logging.info("Fetching seed: %s", seed_normalized)
-    status, final_url, html = http_get(
-        seed_normalized,
-        timeout=timeout,
-        retries=retries,
-    )
-    fetched.add(final_url)
-
-    links: List[str] = []
-    title: Optional[str] = None
-    candidates: List[str] = []
-    emails: List[str] = []
-    images: List[str] = []
-
-    if html:
-        parsed = parse_page(html, final_url, seed_host)
-        title = parsed["title"]
-        internal_links: List[str] = parsed["internal_links"]
-        emails = parsed["emails"]
-        images = parsed["images"]
-
-        all_internal: List[str] = []
-        for internal_url in internal_links:
-            internal_host = urlparse(internal_url).netloc
-            if internal_host == seed_host:
-                all_internal.append(internal_url)
-
-        candidates = []
-        seen_candidates: Set[str] = set()
-        for candidate_url in all_internal:
-            is_new_candidate = (
-                    candidate_url not in seen_candidates
-                    and candidate_url != final_url
-            )
-            if is_new_candidate:
-                seen_candidates.add(candidate_url)
-                candidates.append(candidate_url)
-
-        links = candidates[:INTERNAL_LINK_LIMIT]
-
-    yield {
-        "url": final_url,
-        "status": status,
-        "title": title,
-        "n_internal_links": len(links if html else []),
-        "links": links if html else [],
-        "emails": emails,
-        "image_url": images,
-    }
-
-    if max_pages > MIN_PAGES_ALLOWED:
-        total_allowed = max_pages - MIN_PAGES_ALLOWED
-        taken = 0
-
-        for url in candidates:
-            can_fetch_more = taken < total_allowed
-            is_new_url = url not in fetched
-
-            if can_fetch_more and is_new_url:
-                sleep_delay = max(SLEEP_MIN_DELAY, delay)
-                time.sleep(sleep_delay)
-                logging.info("Fetching: %s", url)
-                status, final_url, html = http_get(
-                    url,
-                    timeout=timeout,
-                    retries=retries,
-                )
-
-                fetched.add(final_url)
-                title = None
-                child_links: List[str] = []
-                emails = []
-
-                if html:
-                    parsed_child = parse_page(html, final_url, seed_host)
-                    title = parsed_child["title"]
-                    all_internal_child: List[str] = parsed_child["internal_links"]
-                    emails = parsed_child["emails"]
-                    images = parsed_child["images"]
-                    child_links = all_internal_child[:INTERNAL_LINK_LIMIT]
-
-                yield {
-                    "url": final_url,
-                    "status": status,
-                    "title": title,
-                    "n_internal_links": len(child_links),
-                    "links": child_links,
-                    "emails": emails,
-                    "image_url": images,
-                }
-                taken += 1
+        row = {
+            "url": page_info["url"],
+            "status": page_info["status"],
+            "title": page_info["title"],
+            "n_internal_links": len(limited_links),
+            "links": limited_links,
+            "level": page_info["level"],
+            "external_links": page_info["external_links"],
+            "n_external_links": len(page_info["external_links"]),
+            "emails": page_info["emails"],
+            "n_emails": len(page_info["emails"]),
+            "images": page_info["images"],
+            "n_images": len(page_info["images"]),
+        }
+        yield row

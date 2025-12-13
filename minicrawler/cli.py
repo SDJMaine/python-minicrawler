@@ -114,6 +114,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 delay=args.delay,
                 timeout=args.timeout,
                 retries=args.retries,
+                depth=2,
         ):
             write_row(writer, row)
             count += 1
