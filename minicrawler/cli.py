@@ -18,6 +18,7 @@ DEFAULT_MAX_PAGES = 50
 DEFAULT_DELAY_SECONDS = 0.2
 DEFAULT_TIMEOUT_SECONDS = 5
 DEFAULT_RETRIES_COUNT = 1
+DEFAULT_DEPTH = 1
 
 def _build_parser() -> argparse.ArgumentParser:
     """
@@ -80,6 +81,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default="INFO",
         help="Logging level (DEBUG, INFO, WARNING, ERROR)",
     )
+    crawl.add_argument(
+        "--depth",
+        type=int,
+        default=DEFAULT_DEPTH,
+        choices=[1, 2, 3],
+        help="Maximum crawl depth (1, 2, or 3; default: 1)",
+    )
     return parser
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -114,7 +122,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 delay=args.delay,
                 timeout=args.timeout,
                 retries=args.retries,
-                depth=2,
+                depth=args.depth,
         ):
             write_row(writer, row)
             count += 1
