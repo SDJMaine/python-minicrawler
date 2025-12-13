@@ -12,6 +12,8 @@ import logging
 
 from typing import Optional, List
 from .crawl import run, scrape_run
+from .fetch import http_get
+from .parse import parse_instagram_post
 from .persist import open_writer, write_row
 
 DEFAULT_MAX_PAGES = 50
@@ -244,6 +246,21 @@ def main(argv: Optional[List[str]] = None) -> int:
                 write_row(writer, row)
                 count += 1
         logging.info("Done scrape. Wrote %d rows to %s", count, args.out)
+
+    elif args.cmd == "instagram":
+        logging.info("Fetching Instagram post image from %s", args.url)
+        status, final_url, html = http_get(
+            args.url,
+            timeout=args.timeout,
+            retries=args.retries,
+        )
+        if status == 0 or html is None:
+            logging.error("Failed to fetch Instagram post from %s", args.url)
+        else:
+            post_info = parse_instagram_post(html, final_url, status)
+            with open_writer(args.out) as writer:
+                write_row(writer, post_info)
+            logging.info("Done instagram. Wrote 1 row to %s", args.out)
 
 
 
