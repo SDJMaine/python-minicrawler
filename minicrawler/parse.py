@@ -161,20 +161,17 @@ def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     external: List[str] = []
 
     anchors = soup.find_all("a", href=True)
-    anchor_index = 0
-    anchor_count = len(anchors)
 
-    while anchor_index < anchor_count:
-        anchor = anchors[anchor_index]
+    for anchor in anchors:
         raw = anchor.get("href")
 
         # Defensive: skip missing/empty hrefs
         if not raw:
-            anchor_index = anchor_index + 1
             continue
 
         abs_url = urljoin(base_url, raw)
         normalized_url = _normalize_url(abs_url)
+
         if _same_host(normalized_url, seed_netloc):
             if normalized_url not in seen_internal:
                 seen_internal.add(normalized_url)
@@ -183,7 +180,6 @@ def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
             if normalized_url not in seen_external:
                 seen_external.add(normalized_url)
                 external.append(normalized_url)
-        anchor_index = anchor_index + 1
 
     emails = _extract_emails(soup)
     images = _extract_images(soup, base_url)
