@@ -138,6 +138,33 @@ def _extract_images(soup: BeautifulSoup, base_url: str) -> List[str]:
     images = list(images_set)
     return images
 
+def extract_description_content(html: str) -> Optional[str]:
+    """
+    This function extracts a special description text
+    from the HTML document, using the meta description
+    tag or the first paragraph element.
+
+    :param str html:
+    :return Optional[str] : description_text
+    :exception na : na
+    :note na
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    meta_tag = soup.find("meta", attrs={"name": "description"})
+    description_text = None
+
+    if meta_tag and meta_tag.get("content"):
+        content_text = meta_tag.get("content").strip()
+        if content_text:
+            description_text = content_text
+
+    if description_text is None:
+        first_paragraph = soup.find("p")
+        if first_paragraph and first_paragraph.get_text(strip=True):
+            description_text = first_paragraph.get_text(strip=True)
+
+    return description_text
+
 def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     """
     This function parses a single HTML page
