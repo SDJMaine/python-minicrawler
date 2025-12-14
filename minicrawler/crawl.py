@@ -1,8 +1,9 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: 8
-# Purpose: A tiny, polite, depth-1
-#          web crawler for a single host.
+# Assignment: Final Project
+# Purpose: A crawl module for the web crawler
+#          Performs depth-limited crawling
+#          and scrape traversal
 # ###########################################
 
 import logging

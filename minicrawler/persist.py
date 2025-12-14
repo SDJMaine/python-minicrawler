@@ -1,8 +1,9 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: 8
+# Assignment: Final Project
 # Purpose: Persistence module for the web crawler
 #          Saves crawl results to a JSON file
+#          and provides NDJSON summary
 # ###########################################
 
 import json

@@ -1,6 +1,6 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: 8
+# Assignment: Final Project
 # Purpose: CLI module for the web crawler
 #          Provides command-line interface
 #          for running the crawler
