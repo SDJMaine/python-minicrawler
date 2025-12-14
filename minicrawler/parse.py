@@ -8,9 +8,18 @@
 
 import re
 
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin, urlparse, urlunparse
 from bs4 import BeautifulSoup
+
+# **********************
+# Constants (numerical only)
+# **********************
+
+DEFAULT_HTTP_PORT = 80
+DEFAULT_HTTPS_PORT = 443
+SPLIT_ONCE = 1
+LAST_INDEX = -1
 
 EMAIL_PATTERN = r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"
 EMAIL_REGEX = re.compile(EMAIL_PATTERN)
@@ -29,19 +38,15 @@ def _normalize_url(url: str) -> str:
     :note na
     """
     parsed = urlparse(url)
+
     scheme = parsed.scheme.lower()
     netloc = parsed.netloc.lower()
+    netloc = _strip_default_port(scheme, netloc)
 
-    is_http_default_port = scheme == "http" and netloc.endswith(":80")
-    is_https_default_port = scheme == "https" and netloc.endswith(":443")
-    if is_http_default_port or is_https_default_port:
-        netloc = netloc.rsplit(":", 1)[0]
+    path = _normalize_path(parsed.path)
 
-    path = parsed.path or "/"
-    if path != "/" and path.endswith("/"):
-        path = path[:-1]
-
-    return urlunparse((scheme, netloc, path, "", parsed.query, ""))
+    normalized_url = urlunparse((scheme, netloc, path, "", parsed.query, ""))
+    return normalized_url
 
 
 def _same_host(url: str, seed_netloc: str) -> bool:
@@ -58,6 +63,7 @@ def _same_host(url: str, seed_netloc: str) -> bool:
     """
     url_netloc = urlparse(url).netloc.lower()
     seed_netloc_lower = seed_netloc.lower()
+
     is_same_host = url_netloc == seed_netloc_lower
     return is_same_host
 
@@ -65,7 +71,7 @@ def _same_host(url: str, seed_netloc: str) -> bool:
 def _extract_title(soup: BeautifulSoup) -> Optional[str]:
     """
     This function extracts and returns
-     the page title from a BeautifulSoup
+    the page title from a BeautifulSoup
     HTML document, or None
     if no usable title is found.
 
@@ -75,11 +81,14 @@ def _extract_title(soup: BeautifulSoup) -> Optional[str]:
     :note na
     """
     title = None
+
     if soup.title and soup.title.string:
         raw_title = soup.title.string.strip()
         if raw_title:
             title = raw_title
+
     return title
+
 
 def _extract_emails(soup: BeautifulSoup) -> List[str]:
     """
@@ -95,23 +104,14 @@ def _extract_emails(soup: BeautifulSoup) -> List[str]:
     emails_set: Set[str] = set()
 
     anchors = soup.find_all("a", href=True)
-
-    for anchor in anchors:
-        href_value = anchor.get("href")
-
-        if href_value and href_value.startswith("mailto:"):
-            email_part = href_value[len("mailto:"):]
-            email_clean = email_part.split("?", 1)[0].strip()
-
-            if email_clean:
-                emails_set.add(email_clean)
+    _collect_mailto_emails(anchors, emails_set)
 
     text = soup.get_text(" ", strip=True)
-    for match in EMAIL_REGEX.findall(text):
-        emails_set.add(match)
+    _collect_text_emails(text, emails_set)
 
     emails = list(emails_set)
     return emails
+
 
 def _extract_images(soup: BeautifulSoup, base_url: str) -> List[str]:
     """
@@ -138,11 +138,15 @@ def _extract_images(soup: BeautifulSoup, base_url: str) -> List[str]:
     images = list(images_set)
     return images
 
+
 def extract_description_content(html: str) -> Optional[str]:
     """
-    This function extracts a special description text
-    from the HTML document, using the meta description
-    tag or the first paragraph element.
+    This function extracts a
+    special description text
+    from the HTML document,
+    using the meta description
+    tag or the first paragraph
+    element.
 
     :param str html:
     :return Optional[str] : description_text
@@ -150,24 +154,18 @@ def extract_description_content(html: str) -> Optional[str]:
     :note na
     """
     soup = BeautifulSoup(html, "html.parser")
-    meta_tag = soup.find("meta", attrs={"name": "description"})
-    description_text = None
 
-    if meta_tag and meta_tag.get("content"):
-        content_text = meta_tag.get("content").strip()
-        if content_text:
-            description_text = content_text
-
+    description_text = _extract_meta_description(soup)
     if description_text is None:
-        first_paragraph = soup.find("p")
-        if first_paragraph and first_paragraph.get_text(strip=True):
-            description_text = first_paragraph.get_text(strip=True)
+        description_text = _extract_first_paragraph(soup)
 
     return description_text
 
+
 def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     """
-    This function parses a single HTML page
+    This function parses a
+    single HTML page
     and returns the page title
     and lists of internal links,
     external links,
@@ -181,56 +179,31 @@ def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
     :note na
     """
     soup = BeautifulSoup(html, "html.parser")
+
     title = _extract_title(soup)
-
-    seen_internal: Set[str] = set()
-    seen_external: Set[str] = set()
-    internal: List[str] = []
-    external: List[str] = []
-
-    anchors = soup.find_all("a", href=True)
-
-    for anchor in anchors:
-        raw = anchor.get("href")
-
-        is_valid = (
-                raw is not None
-                and raw != ""
-                and not raw.startswith("mailto:")
-                and not raw.lower().startswith("javascript:")
-        )
-
-        if is_valid:
-            abs_url = urljoin(base_url, raw)
-            normalized_url = _normalize_url(abs_url)
-
-            if _same_host(normalized_url, seed_netloc):
-                if normalized_url not in seen_internal:
-                    seen_internal.add(normalized_url)
-                    internal.append(normalized_url)
-            else:
-                if normalized_url not in seen_external:
-                    seen_external.add(normalized_url)
-                    external.append(normalized_url)
-
+    internal_links, external_links = _extract_links(soup, base_url, seed_netloc)
     emails = _extract_emails(soup)
     images = _extract_images(soup, base_url)
 
     parsed_page_info = {
         "title": title,
-        "internal_links": internal,
-        "external_links": external,
+        "internal_links": internal_links,
+        "external_links": external_links,
         "emails": emails,
         "images": images,
     }
     return parsed_page_info
 
+
 def parse_instagram_post(html: str, url: str, status: int) -> Dict[str, object]:
     """
-    This function parses an Instagram post page
-    and returns basic information including:
-    title, description, primary image URL, and
-    the poster's username when available.
+    This function parses an
+    Instagram post page
+    and returns basic information
+    including: title, description,
+    primary image URL, and
+    the poster's username
+    when available.
 
     :param str html:
     :param str url:
@@ -241,72 +214,13 @@ def parse_instagram_post(html: str, url: str, status: int) -> Dict[str, object]:
     """
     soup = BeautifulSoup(html, "html.parser")
 
-    # Fallback HTML <title> (usually just "Instagram")
-    title: Optional[str] = None
-    if soup.title and soup.title.string:
-        raw_title = soup.title.string.strip()
-        if raw_title:
-            title = raw_title
+    title = _extract_title(soup)
+    description = _extract_meta_property_content(soup, "og:description")
+    image_url = _extract_meta_property_content(soup, "og:image")
+    og_title_content = _extract_meta_property_content(soup, "og:title")
 
-    # Description from Open Graph meta (likes + caption, etc.)
-    description: Optional[str] = None
-    og_desc = soup.find("meta", attrs={"property": "og:description"})
-    if og_desc and og_desc.get("content"):
-        desc_text = og_desc.get("content").strip()
-        if desc_text:
-            description = desc_text
+    username = _extract_instagram_username(description, og_title_content)
 
-    # Main image URL from Open Graph meta
-    image_url: Optional[str] = None
-    og_img = soup.find("meta", attrs={"property": "og:image"})
-    if og_img and og_img.get("content"):
-        img_text = og_img.get("content").strip()
-        if img_text:
-            image_url = img_text
-
-            # Username extraction
-    username: Optional[str] = None
-
-    # 1) Prefer extracting the handle from og:description
-    #    Patterns:
-    #      "..., N comments - handle on <date>: ..."
-    #      "handle on <date>: ..."
-    if description:
-        # pattern with a preceding dash: "- handle on ..."
-        match = re.search(r"-\s*([A-Za-z0-9_.]+)\s+on\b", description)
-        if match:
-            candidate = match.group(1).strip()
-            if candidate:
-                username = candidate
-
-        # if still None, pattern at the start: "handle on ..."
-        if username is None:
-            match = re.search(r"^([A-Za-z0-9_.]+)\s+on\b", description)
-            if match:
-                candidate = match.group(1).strip()
-                if candidate:
-                    username = candidate
-
-    # 2) If not found in description, fall back to og:title
-    og_title = soup.find("meta", attrs={"property": "og:title"})
-    og_title_content: Optional[str] = None
-    if og_title and og_title.get("content"):
-        og_title_content = og_title.get("content").strip()
-
-    if username is None and og_title_content:
-        raw_og_title = og_title_content
-
-        # Pattern like "Display Name (@handle) • Instagram photos ..."
-        paren_match = re.search(r"\(@([A-Za-z0-9_.]+)\)", raw_og_title)
-        if paren_match:
-            username = paren_match.group(1)
-        else:
-            # If og:title is itself a simple handle (no spaces/specials),
-            # treat it as the username; otherwise, leave it as None.
-            if re.fullmatch(r"[A-Za-z0-9_.]+", raw_og_title):
-                username = raw_og_title
-
-                # Last fallback for title, if it remained None
     if title is None:
         title = "Instagram"
 
@@ -320,3 +234,263 @@ def parse_instagram_post(html: str, url: str, status: int) -> Dict[str, object]:
         "username": username,
     }
     return instagram_post_info
+
+# ********************************************
+#            Helper functions
+# ********************************************
+
+def _strip_default_port(scheme: str, netloc: str) -> str:
+    """
+    This function strips default
+    ports from a netloc
+    for http (80) and https (443).
+
+    :param str scheme:
+    :param str netloc:
+    :return str : cleaned_netloc
+    :exception na : na
+    :note na
+    """
+    cleaned_netloc = netloc
+
+    is_http_default = scheme == "http" and netloc.endswith(f":{DEFAULT_HTTP_PORT}")
+    is_https_default = scheme == "https" and netloc.endswith(f":{DEFAULT_HTTPS_PORT}")
+
+    if is_http_default or is_https_default:
+        cleaned_netloc = netloc.rsplit(":", SPLIT_ONCE)[0]
+
+    return cleaned_netloc
+
+
+def _normalize_path(path: str) -> str:
+    """
+    This function normalizes a
+    URL path by ensuring
+    a root slash exists, and
+    trimming a trailing slash
+    when the path is not root.
+
+    :param str path:
+    :return str : normalized_path
+    :exception na : na
+    :note na
+    """
+    normalized_path = path or "/"
+
+    is_root = normalized_path == "/"
+    ends_with_slash = normalized_path.endswith("/")
+
+    if not is_root and ends_with_slash:
+        normalized_path = normalized_path[:LAST_INDEX]
+
+    return normalized_path
+
+
+def _collect_mailto_emails(anchors, emails_set: Set[str]) -> None:
+    """
+    This function collects mailto:
+    emails from anchor tags.
+
+    :param object anchors:
+    :param Set[str] emails_set:
+    :return None : na
+    :exception na : na
+    :note na
+    """
+    for anchor in anchors:
+        href_value = anchor.get("href")
+        if href_value is not None:
+            href_lower = href_value.lower()
+            if href_lower.startswith("mailto:"):
+                email_part = href_value[len("mailto:"):]
+                email_clean = email_part.split("?", SPLIT_ONCE)[0].strip()
+                if email_clean:
+                    emails_set.add(email_clean)
+
+
+def _collect_text_emails(text: str, emails_set: Set[str]) -> None:
+    """
+    This function collects
+    email addresses from text
+    using the configured
+    EMAIL_REGEX.
+
+    :param str text:
+    :param Set[str] emails_set:
+    :return None : na
+    :exception na : na
+    :note na
+    """
+    matches = EMAIL_REGEX.findall(text)
+
+    for match in matches:
+        emails_set.add(match)
+
+
+def _extract_meta_description(soup: BeautifulSoup) -> Optional[str]:
+    """
+    This function extracts
+    meta description content
+    when available and non-empty.
+
+    :param BeautifulSoup soup:
+    :return Optional[str] : description_text
+    :exception na : na
+    :note na
+    """
+    description_text = None
+
+    meta_tag = soup.find("meta", attrs={"name": "description"})
+    if meta_tag and meta_tag.get("content"):
+        content_text = meta_tag.get("content").strip()
+        if content_text:
+            description_text = content_text
+
+    return description_text
+
+
+def _extract_first_paragraph(soup: BeautifulSoup) -> Optional[str]:
+    """
+    This function extracts
+    the first paragraph text
+    when available and non-empty.
+
+    :param BeautifulSoup soup:
+    :return Optional[str] : paragraph_text
+    :exception na : na
+    :note na
+    """
+    paragraph_text = None
+
+    first_paragraph = soup.find("p")
+    if first_paragraph:
+        raw_text = first_paragraph.get_text(strip=True)
+        if raw_text:
+            paragraph_text = raw_text
+
+    return paragraph_text
+
+
+def _extract_links(soup: BeautifulSoup, base_url: str, seed_netloc: str) -> Tuple[List[str], List[str]]:
+    """
+    This function extracts
+    internal and external links
+    from anchors, using
+    same-host classification and
+    de-duplication.
+
+    :param BeautifulSoup soup:
+    :param str base_url:
+    :param str seed_netloc:
+    :return Tuple[List[str], List[str]] : internal_links, external_links
+    :exception na : na
+    :note na
+    """
+    seen_internal: Set[str] = set()
+    seen_external: Set[str] = set()
+
+    internal: List[str] = []
+    external: List[str] = []
+
+    anchors = soup.find_all("a", href=True)
+
+    for anchor in anchors:
+        raw = anchor.get("href")
+        if raw is not None and raw != "":
+            raw_lower = raw.lower()
+
+            is_mailto = raw_lower.startswith("mailto:")
+            is_javascript = raw_lower.startswith("javascript:")
+
+            if not is_mailto and not is_javascript:
+                abs_url = urljoin(base_url, raw)
+                normalized_url = _normalize_url(abs_url)
+
+                if _same_host(normalized_url, seed_netloc):
+                    _add_unique_link(normalized_url, seen_internal, internal)
+                else:
+                    _add_unique_link(normalized_url, seen_external, external)
+
+    return internal, external
+
+
+def _add_unique_link(url: str, seen: Set[str], output: List[str]) -> None:
+    """
+    This function appends a URL to
+    output only if it has not been seen.
+
+    :param str url:
+    :param Set[str] seen:
+    :param List[str] output:
+    :return None : na
+    :exception na : na
+    :note na
+    """
+    is_new = url not in seen
+    if is_new:
+        seen.add(url)
+        output.append(url)
+
+
+def _extract_meta_property_content(soup: BeautifulSoup, prop_value: str) -> Optional[str]:
+    """
+    This function extracts Open
+    Graph meta content
+    for a given property.
+
+    :param BeautifulSoup soup:
+    :param str prop_value:
+    :return Optional[str] : content
+    :exception na : na
+    :note na
+    """
+    content = None
+
+    meta_tag = soup.find("meta", attrs={"property": prop_value})
+    if meta_tag and meta_tag.get("content"):
+        raw = meta_tag.get("content").strip()
+        if raw:
+            content = raw
+
+    return content
+
+
+def _extract_instagram_username(description: Optional[str], og_title_content: Optional[str]) -> Optional[str]:
+    """
+    This function extracts an
+    Instagram username using
+    og:description patterns first,
+    then og:title patterns.
+
+    :param Optional[str] description:
+    :param Optional[str] og_title_content:
+    :return Optional[str] : username
+    :exception na : na
+    :note na
+    """
+    username: Optional[str] = None
+
+    if description:
+        match = re.search(r"-\s*([A-Za-z0-9_.]+)\s+on\b", description)
+        if match:
+            candidate = match.group(1).strip()
+            if candidate:
+                username = candidate
+
+        if username is None:
+            match = re.search(r"^([A-Za-z0-9_.]+)\s+on\b", description)
+            if match:
+                candidate = match.group(1).strip()
+                if candidate:
+                    username = candidate
+
+    if username is None and og_title_content:
+        paren_match = re.search(r"\(@([A-Za-z0-9_.]+)\)", og_title_content)
+        if paren_match:
+            username = paren_match.group(1)
+        else:
+            is_simple_handle = re.fullmatch(r"[A-Za-z0-9_.]+", og_title_content) is not None
+            if is_simple_handle:
+                username = og_title_content
+
+    return username
