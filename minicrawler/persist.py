@@ -94,18 +94,12 @@ def write_row(writer: object, row: Dict[str, Any]) -> None:
         raise TypeError("Writer does not support write_row(row).")
 
 def summarize_file(path: str) -> Dict[str, int]:
-    """
-    This function summarizes an NDJSON file
-    produced by the crawler / scraper.
-
-    :param str path:
-    :return Dict[str, int] : summary_info
-    :exception na : na
-    :note na
-    """
     total_rows = 0
     unique_urls = set()
-    status_2xx = status_3xx = status_4xx = status_5xx = 0
+    status_2xx = 0
+    status_3xx = 0
+    status_4xx = 0
+    status_5xx = 0
     total_internal_links = 0
     total_external_links = 0
     total_emails = 0
@@ -119,43 +113,66 @@ def summarize_file(path: str) -> Dict[str, int]:
                 total_rows += 1
                 row = json.loads(line)
 
-                url = row.get("url")
-                if url:
-                    unique_urls.add(url)
+                kind = row.get("kind")
 
-                status = row.get("status")
-                if isinstance(status, int):
-                    if STATUS_2XX_MIN <= status <= STATUS_2XX_MAX:
-                        status_2xx += 1
-                    elif STATUS_3XX_MIN <= status <= STATUS_3XX_MAX:
-                        status_3xx += 1
-                    elif STATUS_4XX_MIN <= status <= STATUS_4XX_MAX:
-                        status_4xx += 1
-                    elif STATUS_5XX_MIN <= status <= STATUS_5XX_MAX:
-                        status_5xx += 1
+                is_scrape_row = kind in ("email", "offsite_link", "image")
+                if is_scrape_row:
+                    source_url = row.get("source_url")
+                    if source_url:
+                        unique_urls.add(source_url)
 
-                internal = row.get("internal_links", [])
-                external = row.get("external_links", [])
-                if isinstance(internal, list):
-                    total_internal_links += len(internal)
-                if isinstance(external, list):
-                    total_external_links += len(external)
+                    value = row.get("value")
+                    if value:
+                        if kind == "email":
+                            total_emails += 1
+                        elif kind == "offsite_link":
+                            total_external_links += 1
+                        elif kind == "image":
+                            total_images += 1
+                else:
+                    url = row.get("url")
+                    if url:
+                        unique_urls.add(url)
 
-                emails = row.get("emails", [])
-                if isinstance(emails, list):
-                    total_emails += len(emails)
+                    status = row.get("status")
+                    if isinstance(status, int):
+                        if STATUS_2XX_MIN <= status <= STATUS_2XX_MAX:
+                            status_2xx += 1
+                        elif STATUS_3XX_MIN <= status <= STATUS_3XX_MAX:
+                            status_3xx += 1
+                        elif STATUS_4XX_MIN <= status <= STATUS_4XX_MAX:
+                            status_4xx += 1
+                        elif STATUS_5XX_MIN <= status <= STATUS_5XX_MAX:
+                            status_5xx += 1
 
-                image_count = 0
-                images = row.get("images")
-                if isinstance(images, list):
-                    image_count += len(images)
-                if row.get("kind") == "image" and row.get("value"):
-                    image_count += 1
-                if row.get("kind") == "instagram_post" and row.get("image_url"):
-                    image_count += 1
-                total_images += image_count
+                    internal_links = row.get("internal_links")
+                    if isinstance(internal_links, list):
+                        total_internal_links += len(internal_links)
+                    else:
+                        n_internal_links = row.get("n_internal_links")
+                        if isinstance(n_internal_links, int):
+                            total_internal_links += n_internal_links
+                        else:
+                            links = row.get("links")
+                            if isinstance(links, list):
+                                total_internal_links += len(links)
 
-    return {
+                    external = row.get("external_links")
+                    if isinstance(external, list):
+                        total_external_links += len(external)
+
+                    emails = row.get("emails")
+                    if isinstance(emails, list):
+                        total_emails += len(emails)
+
+                    images = row.get("images")
+                    if isinstance(images, list):
+                        total_images += len(images)
+
+                    if kind == "instagram_post" and row.get("image_url"):
+                        total_images += 1
+
+    summary_info = {
         "total_rows": total_rows,
         "unique_urls": len(unique_urls),
         "status_2xx": status_2xx,
@@ -167,3 +184,4 @@ def summarize_file(path: str) -> Dict[str, int]:
         "total_emails": total_emails,
         "total_images": total_images,
     }
+    return summary_info
