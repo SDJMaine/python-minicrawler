@@ -31,16 +31,14 @@ def _is_instagram_post_url(url: str) -> bool:
     netloc = parsed.netloc.lower()
     path = parsed.path.strip("/")
 
-    if not netloc.endswith("instagram.com"):
-        return False
+    first_segment = ""
 
-    if not path:
-        return False
+    if path:
+        first_segment = path.split("/", 1)[0]
 
-    first_segment = path.split("/", 1)[0]
-    is_post = first_segment == "p"
+    is_post = netloc.endswith("instagram.com") and path != "" and first_segment == "p"
+
     return is_post
-
 
 def fetch_instagram_post_image(url: str, timeout: float = 10.0) -> Dict[str, object]:
     """
@@ -75,47 +73,51 @@ def fetch_instagram_post_image(url: str, timeout: float = 10.0) -> Dict[str, obj
         "url": url,
     }
 
-    # Validate that this looks like an Instagram post URL
-    if not _is_instagram_post_url(url):
-        result["error"] = "URL is not a recognized Instagram post URL (/p/<id>/)."
-        return result
+    error_message: str = ""
 
-    # Try to fetch the page
-    try:
-        response = requests.get(url, timeout=timeout)
-    except Exception as exc:
-        result["error"] = f"Unable to fetch URL: {exc}"
-        return result
+    is_post_url = _is_instagram_post_url(url)
+    if not is_post_url:
+        error_message = "URL is not a recognized Instagram post URL (/p/<id>/)."
+    else:
+        response = None
+        fetch_failed = False
 
-    status = response.status_code
-    result["status"] = status
+        try:
+            response = requests.get(url, timeout=timeout)
+        except Exception as exc:
+            fetch_failed = True
+            error_message = f"Unable to fetch URL: {exc}"
 
-    # Non-200 often means private / removed / login-only
-    if status != 200:
-        result["error"] = (
-            "Page not accessible (it may be private, removed, or require login)."
-        )
-        return result
+        if not fetch_failed and response is not None:
+            status = response.status_code
+            result["status"] = status
 
-    html = response.text
-    soup = BeautifulSoup(html, "html.parser")
+            if status != 200:
+                error_message = (
+                    "Page not accessible (it may be private, removed, or require login)."
+                )
+            else:
+                html = response.text
+                soup = BeautifulSoup(html, "html.parser")
 
-    title = _extract_title(soup)
-    if title is not None:
-        result["title"] = title
+                title = _extract_title(soup)
+                if title is not None:
+                    result["title"] = title
 
-    description = extract_description_content(html)
-    if description is not None:
-        result["description"] = description
+                description = extract_description_content(html)
+                if description is not None:
+                    result["description"] = description
 
-    primary_image = parse_instagram_post(soup, url)
+                primary_image = parse_instagram_post(soup, url)
+                if primary_image is None:
+                    error_message = (
+                        "No public image found in the HTML. "
+                        "The post may be private or loaded only via JavaScript."
+                    )
+                else:
+                    result["image_url"] = primary_image
 
-    if primary_image is None:
-        result["error"] = (
-            "No public image found in the HTML. "
-            "The post may be private or loaded only via JavaScript."
-        )
-        return result
+    if error_message:
+        result["error"] = error_message
 
-    result["image_url"] = primary_image
     return result
