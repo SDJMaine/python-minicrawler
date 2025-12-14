@@ -2,10 +2,17 @@
 # Name: Shayene Johnson
 # Assignment: 8
 # Purpose: Tester for fetch.py
-#           function
+#           functions
 # ###########################################
 
-from minicrawler.fetch import _is_html
+import requests
+
+from minicrawler.fetch import (
+    _is_html,
+    http_get,
+    STATUS_NONE,
+)
+
 
 def test_is_html_recognizes_html_content_type() -> None:
     """
@@ -24,3 +31,181 @@ def test_is_html_recognizes_html_content_type() -> None:
     assert _is_html("application/xhtml+xml") is True
     assert _is_html("application/json") is False
     assert _is_html(None) is False
+
+
+def test_http_get_returns_html_for_success_html_response(mocker) -> None:
+    """
+    This function tests that
+    http_get returns status, final_url,
+    and HTML text when the response
+    is a 2xx HTML page.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note tests the basic 2xx HTML success path
+    """
+    url = "https://example.com/"
+    html_text = "<html><head><title>Test</title></head><body>OK</body></html>"
+
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.url = url
+    mock_response.headers = {"Content-Type": "text/html; charset=utf-8"}
+    mock_response.text = html_text
+
+    mocked_get = mocker.patch(
+        "minicrawler.fetch.requests.get",
+        return_value=mock_response,
+    )
+
+    status, final_url, html = http_get(url)
+
+    assert status == 200
+    assert final_url == url
+    assert html == html_text
+    assert mocked_get.call_count == 1
+
+
+def test_http_get_filters_out_non_html_success_response(mocker) -> None:
+    """
+    This function tests that
+    http_get does not return HTML
+    when the response is 2xx but
+    the Content-Type is non-HTML.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note tests non-HTML 2xx path
+    """
+    url = "https://api.example.com/data"
+
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.url = url
+    mock_response.headers = {"Content-Type": "application/json"}
+    mock_response.text = '{"key": "value"}'
+
+    mocked_get = mocker.patch(
+        "minicrawler.fetch.requests.get",
+        return_value=mock_response,
+    )
+
+    status, final_url, html = http_get(url)
+
+    assert status == 200
+    assert final_url == url
+    assert html is None
+    assert mocked_get.call_count == 1
+
+
+def test_http_get_retries_on_5xx_and_succeeds(mocker) -> None:
+    """
+    This function tests that
+    http_get retries when it first
+    receives a 5xx response and
+    then succeeds on a later attempt.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note tests retry behavior on 5xx
+    """
+    url = "https://example.com/"
+
+    first_response = mocker.Mock()
+    first_response.status_code = 503
+    first_response.url = url
+    first_response.headers = {"Content-Type": "text/html"}
+    first_response.text = "Service Unavailable"
+
+    second_response = mocker.Mock()
+    second_response.status_code = 200
+    second_response.url = url
+    second_response.headers = {"Content-Type": "text/html"}
+    second_response.text = "<html>OK</html>"
+
+    mocked_get = mocker.patch(
+        "minicrawler.fetch.requests.get",
+        side_effect=[first_response, second_response],
+    )
+
+    status, final_url, html = http_get(url, retries=1)
+
+    assert status == 200
+    assert final_url == url
+    assert html == "<html>OK</html>"
+    assert mocked_get.call_count == 2
+
+
+def test_http_get_retries_on_timeout_and_then_fails(mocker) -> None:
+    """
+    This function tests that
+    http_get retries on network timeouts
+    up to the retry limit
+    and then returns STATUS_NONE
+    with no HTML when all attempts fail.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note tests timeout retry failure path
+    """
+    url = "https://example.com/"
+
+    mocked_get = mocker.patch(
+        "minicrawler.fetch.requests.get",
+        side_effect=requests.Timeout("timeout"),
+    )
+
+    retries = 2
+    status, final_url, html = http_get(url, retries=retries, timeout=1)
+
+    assert status == STATUS_NONE
+    assert final_url == url
+    assert html is None
+    assert mocked_get.call_count == retries + 1
+
+
+def test_http_get_sets_expected_headers(mocker) -> None:
+    """
+    This function tests that
+    http_get sends the expected
+    User-Agent and Accept headers
+    with the HTTP request.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na : na
+    :note tests HTTP request headers
+    """
+    url = "https://example.com/"
+    custom_agent = "MiniCrawlerTest/1.0"
+
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mock_response.url = url
+    mock_response.headers = {"Content-Type": "text/html"}
+    mock_response.text = "<html>OK</html>"
+
+    mocked_get = mocker.patch(
+        "minicrawler.fetch.requests.get",
+        return_value=mock_response,
+    )
+
+    status, final_url, html = http_get(
+        url,
+        user_agent=custom_agent,
+    )
+
+    assert status == 200
+    assert final_url == url
+    assert html == "<html>OK</html>"
+
+    assert mocked_get.call_count == 1
+    _, kwargs = mocked_get.call_args
+    headers = kwargs.get("headers", {})
+
+    assert headers.get("User-Agent") == custom_agent
+    assert "text/html" in headers.get("Accept", "")
