@@ -1,37 +1,67 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: 8
+# Assignment: Final Project
 # Purpose: Tester for parse.py
-#          parse_page function
+#          helper functions and parse_page
 # ###########################################
 
-from minicrawler.parse import parse_page
+from typing import List, Set
 
-def test_parse_page_extracts_title_and_internal_link() -> None:
+from bs4 import BeautifulSoup
+
+from minicrawler.parse import (
+    _normalize_url,
+    _same_host,
+    _extract_title,
+    _extract_emails,
+    _extract_images,
+    parse_page,
+    extract_description_content,
+    parse_instagram_post,
+)
+
+
+def test_normalize_url_lowers_and_strips_default_ports() -> None:
     """
     This function tests that
-    parse_page correctly extracts
-    the page title and same-host
-    internal links from HTML.
+    _normalize_url lowercases the scheme
+    and netloc, strips default ports,
+    and removes trailing slashes
+    when appropriate.
 
     :param na: na
     :return None: na
     :exception na: na
     :note na
     """
-    html = """
-    <html>
-      <head><title>Example Page</title></head>
-      <body>
-        <a href="/about">About</a>
-        <a href="https://other.com/">External</a>
-      </body>
-    </html>
+    url_http = "HTTP://Example.COM:80/SomePath/"
+    url_https = "https://Example.COM:443/foo/"
+    url_https_non_default = "https://Example.COM:8443/foo/"
+
+    normalized_http = _normalize_url(url_http)
+    normalized_https = _normalize_url(url_https)
+    normalized_non_default = _normalize_url(url_https_non_default)
+
+    assert normalized_http == "http://example.com/SomePath"
+    assert normalized_https == "https://example.com/foo"
+    assert normalized_non_default == "https://example.com:8443/foo"
+
+
+def test_same_host_compares_netloc_case_insensitive() -> None:
     """
-    base_url = "https://example.com/index.html"
+    This function tests that
+    _same_host returns True when
+    the URL host matches the seed host
+    regardless of case, and False
+    otherwise.
 
-    result = parse_page(html, base_url)
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note na
+    """
+    assert _same_host("https://Example.com/path", "example.com") is True
+    assert _same_host("https://sub.example.com/path", "example.com") is False
+    assert _same_host("https://other.com/", "example.com") is False
 
-    assert result["title"] == "Example Page"
-    assert "https://example.com/about" in result["internal_links"]
-    assert all("other.com" not in url for url in result["internal_links"])
+
