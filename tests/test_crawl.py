@@ -278,4 +278,205 @@ def test_scrape_run_emails_deduplicates_across_pages(mocker) -> None:
     assert mapping["b@example.com"] == "https://example.com/"
     assert mapping["c@example.com"] == "https://example.com/about"
 
+def test_scrape_run_offsite_deduplicates_across_pages(mocker) -> None:
+    """
+    This function tests that
+    scrape_run with target 'offsite'
+    yields each external link only once,
+    even if it appears on multiple pages.
 
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note tests offsite link scraping and de-duplication
+    """
+    fake_pages = [
+        {
+            "url": "https://example.com/",
+            "status": 200,
+            "title": "Home",
+            "internal_links": [],
+            "external_links": ["https://other.com/a", "https://other.com/b"],
+            "emails": [],
+            "images": [],
+            "level": 0,
+        },
+        {
+            "url": "https://example.com/next",
+            "status": 200,
+            "title": "Next",
+            "internal_links": [],
+            "external_links": ["https://other.com/b", "https://other.com/c"],
+            "emails": [],
+            "images": [],
+            "level": 1,
+        },
+    ]
+
+    mocker.patch(
+        "minicrawler.crawl._crawl_pages",
+        return_value=iter(fake_pages),
+    )
+
+    rows: t.List[dict] = list(
+        scrape_run(
+            seed="https://example.com/",
+            max_pages=10,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=3,
+            target="offsite",
+        )
+    )
+
+    values = [row["value"] for row in rows]
+    assert values == [
+        "https://other.com/a",
+        "https://other.com/b",
+        "https://other.com/c",
+    ]
+
+    kinds = {row["kind"] for row in rows}
+    assert kinds == {"offsite_link"}
+
+
+def test_scrape_run_images_deduplicates_across_pages(mocker) -> None:
+    """
+    This function tests that
+    scrape_run with target 'images'
+    yields each image URL only once,
+    even if it appears on multiple pages.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note tests image scraping and de-duplication
+    """
+    fake_pages = [
+        {
+            "url": "https://example.com/",
+            "status": 200,
+            "title": "Home",
+            "internal_links": [],
+            "external_links": [],
+            "emails": [],
+            "images": ["https://example.com/a.png", "https://example.com/b.png"],
+            "level": 0,
+        },
+        {
+            "url": "https://example.com/next",
+            "status": 200,
+            "title": "Next",
+            "internal_links": [],
+            "external_links": [],
+            "emails": [],
+            "images": ["https://example.com/b.png", "https://example.com/c.png"],
+            "level": 1,
+        },
+    ]
+
+    mocker.patch(
+        "minicrawler.crawl._crawl_pages",
+        return_value=iter(fake_pages),
+    )
+
+    rows: t.List[dict] = list(
+        scrape_run(
+            seed="https://example.com/",
+            max_pages=10,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=3,
+            target="images",
+        )
+    )
+
+    values = [row["value"] for row in rows]
+    assert values == [
+        "https://example.com/a.png",
+        "https://example.com/b.png",
+        "https://example.com/c.png",
+    ]
+
+    kinds = {row["kind"] for row in rows}
+    assert kinds == {"image"}
+
+
+def test_scrape_run_unknown_target_yields_no_rows(mocker) -> None:
+    """
+    This function tests that
+    scrape_run yields no rows
+    when the target is not recognized.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note tests default path for invalid target
+    """
+    fake_pages = [
+        {
+            "url": "https://example.com/",
+            "status": 200,
+            "title": "Home",
+            "internal_links": [],
+            "external_links": ["https://other.com/"],
+            "emails": ["a@example.com"],
+            "images": ["https://example.com/a.png"],
+            "level": 0,
+        },
+    ]
+
+    mocker.patch(
+        "minicrawler.crawl._crawl_pages",
+        return_value=iter(fake_pages),
+    )
+
+    rows: t.List[dict] = list(
+        scrape_run(
+            seed="https://example.com/",
+            max_pages=10,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=3,
+            target="unknown",
+        )
+    )
+
+    assert rows == []
+
+def test_scrape_run_offsite_rows_include_kind_value_and_source_url(mocker) -> None:
+    fake_pages = [
+        {
+            "url": "https://example.com/",
+            "status": 200,
+            "title": "Home",
+            "internal_links": [],
+            "external_links": ["https://other.com/a"],
+            "emails": [],
+            "images": [],
+            "level": 0,
+        },
+    ]
+
+    mocker.patch("minicrawler.crawl._crawl_pages", return_value=iter(fake_pages))
+
+    rows = list(
+        scrape_run(
+            seed="https://example.com/",
+            max_pages=10,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=2,
+            target="offsite",
+        )
+    )
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["kind"] == "offsite_link"
+    assert row["value"] == "https://other.com/a"
+    assert row["source_url"] == "https://example.com/"
