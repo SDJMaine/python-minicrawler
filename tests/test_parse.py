@@ -291,6 +291,32 @@ def test_parse_page_deduplicates_internal_and_external_links() -> None:
     assert result["internal_links"] == ["https://example.com/a"]
     assert result["external_links"] == ["https://other.com/"]
 
+def test_parse_page_skips_missing_and_empty_href() -> None:
+    html = """
+    <html><body>
+      <a>No href</a>
+      <a href="">Empty href</a>
+      <a href="/ok">OK</a>
+    </body></html>
+    """
+    base_url = "https://example.com/index.html"
+    seed_netloc = "example.com"
+    result = parse_page(html, base_url, seed_netloc)
+    assert result["internal_links"] == ["https://example.com/ok"]
+
+
+def test_parse_page_dedupes_equivalent_urls_after_normalization() -> None:
+    html = """
+    <html><body>
+      <a href="/about/">About slash</a>
+      <a href="https://example.com/about">About no slash</a>
+    </body></html>
+    """
+    base_url = "https://example.com/index.html"
+    seed_netloc = "example.com"
+    result = parse_page(html, base_url, seed_netloc)
+    assert result["internal_links"] == ["https://example.com/about"]
+
 def test_extract_description_content_prefers_meta_description() -> None:
     """
     This function tests that
@@ -365,6 +391,16 @@ def test_extract_description_content_returns_none_when_no_meta_or_paragraph() ->
     """
     special = extract_description_content(html)
     assert special is None
+
+def test_extract_description_content_meta_without_content_falls_back_to_paragraph() -> None:
+    html = """
+    <html>
+      <head><meta name="description" /></head>
+      <body><p>First paragraph text.</p></body>
+    </html>
+    """
+    special = extract_description_content(html)
+    assert special == "First paragraph text."
 
 def test_parse_instagram_post_username_from_description_with_dash() -> None:
     """
@@ -491,6 +527,51 @@ def test_parse_instagram_post_username_from_simple_og_title() -> None:
     assert result["username"] == "simple_handle123"
     assert result["title"] == "Instagram"
     assert result["image_url"] == "https://cdn.example.com/simple.jpg"
+
+def test_parse_instagram_post_no_og_fields_uses_html_title() -> None:
+    html = """
+    <html>
+      <head><title>Instagram</title></head>
+      <body></body>
+    </html>
+    """
+    result = parse_instagram_post(html, "https://www.instagram.com/p/noog", 200)
+    assert result["title"] == "Instagram"
+    assert result["description"] is None
+    assert result["image_url"] is None
+    assert result["username"] is None
+
+
+def test_parse_instagram_post_no_title_falls_back_to_instagram() -> None:
+    html = "<html><head></head><body></body></html>"
+    result = parse_instagram_post(html, "https://www.instagram.com/p/notitle", 200)
+    assert result["title"] == "Instagram"
+
+
+def test_parse_instagram_post_og_title_with_spaces_not_username() -> None:
+    html = """
+    <html>
+      <head>
+        <meta property="og:title" content="Display Name • Instagram photos and videos" />
+      </head>
+      <body></body>
+    </html>
+    """
+    result = parse_instagram_post(html, "https://www.instagram.com/p/title_spaces", 200)
+    assert result["username"] is None
+
+
+def test_parse_instagram_post_description_non_matching_has_no_username() -> None:
+    html = """
+    <html>
+      <head>
+        <meta property="og:description" content="Some caption without handle format." />
+      </head>
+      <body></body>
+    </html>
+    """
+    result = parse_instagram_post(html, "https://www.instagram.com/p/desc_nomatch", 200)
+    assert result["username"] is None
 
 
 
