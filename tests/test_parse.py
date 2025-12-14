@@ -313,4 +313,130 @@ def test_extract_description_content_returns_none_when_no_meta_or_paragraph() ->
     special = extract_description_content(html)
     assert special is None
 
+def test_parse_instagram_post_username_from_description_with_dash() -> None:
+    """
+    This function tests that
+    parse_instagram_post extracts the
+    username from the og:description string
+    when it appears after a dash, as in:
+    "... comments - handle_name on <date>: ..."
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note na
+    """
+    html = """
+    <html>
+      <head>
+        <title>Instagram</title>
+        <meta property="og:description"
+              content="1,234 likes, 10 comments - handle_name on May 10, 2022: &quot;Caption text&quot;." />
+        <meta property="og:image"
+              content="https://cdn.example.com/image.jpg" />
+      </head>
+      <body></body>
+    </html>
+    """
+    result = parse_instagram_post(html, "https://www.instagram.com/p/test", 200)
+
+    assert result["status"] == 200
+    assert result["title"] == "Instagram"
+    assert result["description"].startswith("1,234 likes")
+    assert result["image_url"] == "https://cdn.example.com/image.jpg"
+    assert result["username"] == "handle_name"
+
+
+def test_parse_instagram_post_username_from_description_start() -> None:
+    """
+    This function tests that
+    parse_instagram_post extracts the
+    username from the start of the
+    og:description string when it has the form:
+    "handle_name on <date>: ..."
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note na
+    """
+    html = """
+    <html>
+      <head>
+        <title>Instagram</title>
+        <meta property="og:description"
+              content="iridescent_maine on April 14, 2022: &quot;Caption text&quot;." />
+        <meta property="og:image"
+              content="https://cdn.example.com/other.jpg" />
+      </head>
+      <body></body>
+    </html>
+    """
+    result = parse_instagram_post(html, "https://www.instagram.com/p/test2", 200)
+
+    assert result["status"] == 200
+    assert result["username"] == "iridescent_maine"
+    assert result["image_url"] == "https://cdn.example.com/other.jpg"
+    assert result["description"].startswith("iridescent_maine on April 14, 2022:")
+
+def test_parse_instagram_post_username_from_og_title_parens() -> None:
+    """
+    This function tests that
+    parse_instagram_post extracts the
+    username from og:title when it is in
+    parentheses as (@handle_name).
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note na
+    """
+    html = """
+    <html>
+      <head>
+        <title>Instagram</title>
+        <meta property="og:title"
+              content="Display Name (@paren_handle) • Instagram photos and videos" />
+        <meta property="og:image"
+              content="https://cdn.example.com/title.jpg" />
+      </head>
+      <body></body>
+    </html>
+    """
+    result = parse_instagram_post(html, "https://www.instagram.com/p/test3", 200)
+
+    assert result["username"] == "paren_handle"
+    assert result["image_url"] == "https://cdn.example.com/title.jpg"
+    assert result["description"] is None or isinstance(result["description"], str)
+
+
+def test_parse_instagram_post_username_from_simple_og_title() -> None:
+    """
+    This function tests that
+    parse_instagram_post uses og:title
+    as the username when og:title itself
+    looks like a simple handle.
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note na
+    """
+    html = """
+    <html>
+      <head>
+        <meta property="og:title"
+              content="simple_handle123" />
+        <meta property="og:image"
+              content="https://cdn.example.com/simple.jpg" />
+      </head>
+      <body></body>
+    </html>
+    """
+    result = parse_instagram_post(html, "https://www.instagram.com/p/test4", 200)
+
+    assert result["username"] == "simple_handle123"
+    assert result["title"] == "Instagram"
+    assert result["image_url"] == "https://cdn.example.com/simple.jpg"
+
 
