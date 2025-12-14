@@ -238,4 +238,79 @@ def test_parse_page_deduplicates_internal_and_external_links() -> None:
     assert result["internal_links"] == ["https://example.com/a"]
     assert result["external_links"] == ["https://other.com/"]
 
+def test_extract_description_content_prefers_meta_description() -> None:
+    """
+    This function tests that
+    extract_description_content prefers
+    the meta description content when
+    it is present and non-empty.
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note na
+    """
+    html = """
+    <html>
+      <head>
+        <meta name="description" content="  Meta description text  " />
+      </head>
+      <body>
+        <p>First paragraph text.</p>
+      </body>
+    </html>
+    """
+    special = extract_description_content(html)
+    assert special == "Meta description text"
+
+
+def test_extract_description_content_falls_back_to_first_paragraph() -> None:
+    """
+    This function tests that
+    extract_description_content falls back
+    to the first paragraph text when
+    no usable meta description exists.
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note na
+    """
+    html = """
+    <html>
+      <head>
+        <meta name="description" content="   " />
+      </head>
+      <body>
+        <p>First paragraph text.</p>
+        <p>Second paragraph text.</p>
+      </body>
+    </html>
+    """
+    special = extract_description_content(html)
+    assert special == "First paragraph text."
+
+
+def test_extract_description_content_returns_none_when_no_meta_or_paragraph() -> None:
+    """
+    This function tests that
+    extract_description_content returns None
+    when there is no meta description
+    and no paragraph content to use
+    as special text.
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note na
+    """
+    html = """
+    <html>
+      <head><title>No description</title></head>
+      <body><div>Just a div</div></body>
+    </html>
+    """
+    special = extract_description_content(html)
+    assert special is None
+
 
