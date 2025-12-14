@@ -46,6 +46,19 @@ def test_normalize_url_lowers_and_strips_default_ports() -> None:
     assert normalized_https == "https://example.com/foo"
     assert normalized_non_default == "https://example.com:8443/foo"
 
+def test_normalize_url_drops_fragment() -> None:
+    url = "https://Example.com/path/page#section"
+    assert _normalize_url(url) == "https://example.com/path/page"
+
+
+def test_normalize_url_keeps_query_and_drops_fragment() -> None:
+    url = "https://Example.com/path/?a=1&b=2#frag"
+    assert _normalize_url(url) == "https://example.com/path?a=1&b=2"
+
+
+def test_normalize_url_adds_root_slash_when_missing() -> None:
+    url = "https://Example.com"
+    assert _normalize_url(url) == "https://example.com/"
 
 def test_same_host_compares_netloc_case_insensitive() -> None:
     """
@@ -438,5 +451,8 @@ def test_parse_instagram_post_username_from_simple_og_title() -> None:
     assert result["username"] == "simple_handle123"
     assert result["title"] == "Instagram"
     assert result["image_url"] == "https://cdn.example.com/simple.jpg"
+
+
+
 
 
