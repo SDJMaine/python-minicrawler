@@ -164,6 +164,46 @@ def test_extract_images_normalizes_and_deduplicates() -> None:
     assert "https://example.com/base/images/other.png" in images_set
     assert len(images_set) == 2
 
+def test_extract_emails_ignores_empty_mailto() -> None:
+    html = """
+    <html><body>
+      <a href="mailto:">Empty</a>
+      <a href="mailto:   ">Spaces</a>
+    </body></html>
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    emails = _extract_emails(soup)
+    assert "" not in emails
+    assert "   " not in emails
+    assert len(emails) == 0
+
+
+def test_extract_emails_dedupes_same_email_in_mailto_and_text() -> None:
+    html = """
+    <html><body>
+      <a href="mailto:user@example.com">Email</a>
+      <p>Contact: user@example.com</p>
+    </body></html>
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    emails = _extract_emails(soup)
+    assert set(emails) == {"user@example.com"}
+
+
+def test_extract_images_skips_empty_src_and_drops_fragment() -> None:
+    html = """
+    <html><body>
+      <img src="" />
+      <img />
+      <img src="/img/a.png#foo" />
+    </body></html>
+    """
+    base_url = "https://example.com/index.html"
+    soup = BeautifulSoup(html, "html.parser")
+    images = _extract_images(soup, base_url)
+    assert "https://example.com/img/a.png" in set(images)
+    # empty src should not create an entry
+    assert "" not in images
 
 def test_parse_page_extracts_title_links_emails_and_images() -> None:
     """
@@ -451,6 +491,7 @@ def test_parse_instagram_post_username_from_simple_og_title() -> None:
     assert result["username"] == "simple_handle123"
     assert result["title"] == "Instagram"
     assert result["image_url"] == "https://cdn.example.com/simple.jpg"
+
 
 
 
