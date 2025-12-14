@@ -214,6 +214,225 @@ def test_crawl_pages_respects_depth_and_avoids_duplicate_enqueues(mocker) -> Non
     # BFS order: seed, then its immediate children
     assert urls[0] == "https://example.com/"
 
+def test_crawl_pages_no_html_does_not_call_parse_and_yields_empty_lists(mocker) -> None:
+    seed = "https://example.com/"
+
+    mocked_parse = mocker.patch("minicrawler.crawl.parse_page")
+
+    def fake_http_get(url: str, timeout: int, retries: int):
+        return 200, url, None  # html is None
+
+    mocker.patch("minicrawler.crawl.http_get", side_effect=fake_http_get)
+
+    pages = list(
+        _crawl_pages(
+            seed=seed,
+            max_pages=1,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=2,
+        )
+    )
+
+    assert len(pages) == 1
+    page = pages[0]
+    assert page["url"] == seed
+    assert page["title"] is None
+    assert page["internal_links"] == []
+    assert page["external_links"] == []
+    assert page["emails"] == []
+    assert page["images"] == []
+    mocked_parse.assert_not_called()
+
+
+def test_crawl_pages_honors_max_pages_even_if_queue_has_more(mocker) -> None:
+    seed = "https://example.com/"
+
+    def fake_http_get(url: str, timeout: int, retries: int):
+        return 200, url, "<html>ok</html>"
+
+    def fake_parse_page(html: str, final_url: str, seed_host: str) -> dict:
+        if final_url == seed:
+            # force a large queue
+            return {
+                "title": "Home",
+                "internal_links": [f"https://example.com/p{i}" for i in range(10)],
+                "external_links": [],
+                "emails": [],
+                "images": [],
+            }
+        return {
+            "title": "Child",
+            "internal_links": [],
+            "external_links": [],
+            "emails": [],
+            "images": [],
+        }
+
+    mocked_get = mocker.patch("minicrawler.crawl.http_get", side_effect=fake_http_get)
+    mocker.patch("minicrawler.crawl.parse_page", side_effect=fake_parse_page)
+
+    max_pages = 3
+    pages = list(
+        _crawl_pages(
+            seed=seed,
+            max_pages=max_pages,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=3,
+        )
+    )
+
+    assert len(pages) == max_pages
+    assert mocked_get.call_count == max_pages
+
+
+def test_crawl_pages_depth_clamps_low_to_one(mocker) -> None:
+    # depth=0 should clamp to 1 => only the seed page (no enqueue)
+    seed = "https://example.com/"
+
+    def fake_http_get(url: str, timeout: int, retries: int):
+        return 200, url, "<html>ok</html>"
+
+    def fake_parse_page(html: str, final_url: str, seed_host: str) -> dict:
+        return {
+            "title": "Home",
+            "internal_links": ["https://example.com/a"],
+            "external_links": [],
+            "emails": [],
+            "images": [],
+        }
+
+    mocker.patch("minicrawler.crawl.http_get", side_effect=fake_http_get)
+    mocker.patch("minicrawler.crawl.parse_page", side_effect=fake_parse_page)
+
+    pages = list(
+        _crawl_pages(
+            seed=seed,
+            max_pages=10,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=0,  # should clamp to 1
+        )
+    )
+
+    urls = [p["url"] for p in pages]
+    assert urls == [seed]
+    assert pages[0]["level"] == 0
+
+
+def test_crawl_pages_depth_clamps_high_to_three(mocker) -> None:
+    # depth=99 should clamp to 3 => levels 0,1,2 only (not 3)
+    seed = "https://example.com/"
+
+    def fake_http_get(url: str, timeout: int, retries: int):
+        return 200, url, "<html>ok</html>"
+
+    def fake_parse_page(html: str, final_url: str, seed_host: str) -> dict:
+        if final_url == seed:
+            return {
+                "title": "Home",
+                "internal_links": ["https://example.com/a"],
+                "external_links": [],
+                "emails": [],
+                "images": [],
+            }
+        if final_url == "https://example.com/a":
+            return {
+                "title": "A",
+                "internal_links": ["https://example.com/b"],
+                "external_links": [],
+                "emails": [],
+                "images": [],
+            }
+        if final_url == "https://example.com/b":
+            return {
+                "title": "B",
+                "internal_links": ["https://example.com/c"],  # should NOT be enqueued at depth=3
+                "external_links": [],
+                "emails": [],
+                "images": [],
+            }
+        return {
+            "title": None,
+            "internal_links": [],
+            "external_links": [],
+            "emails": [],
+            "images": [],
+        }
+
+    mocker.patch("minicrawler.crawl.http_get", side_effect=fake_http_get)
+    mocker.patch("minicrawler.crawl.parse_page", side_effect=fake_parse_page)
+
+    pages = list(
+        _crawl_pages(
+            seed=seed,
+            max_pages=10,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=99,  # should clamp to 3
+        )
+    )
+
+    urls = [p["url"] for p in pages]
+    levels = {p["url"]: p["level"] for p in pages}
+
+    assert seed in urls
+    assert "https://example.com/a" in urls
+    assert "https://example.com/b" in urls
+    assert "https://example.com/c" not in urls
+    assert levels[seed] == 0
+    assert levels["https://example.com/a"] == 1
+    assert levels["https://example.com/b"] == 2
+
+
+def test_crawl_pages_sleep_not_called_before_first_request_and_called_between(mocker) -> None:
+    seed = "https://example.com/"
+    delay = 0.25
+
+    def fake_http_get(url: str, timeout: int, retries: int):
+        return 200, url, "<html>ok</html>"
+
+    def fake_parse_page(html: str, final_url: str, seed_host: str) -> dict:
+        if final_url == seed:
+            return {
+                "title": "Home",
+                "internal_links": ["https://example.com/a"],
+                "external_links": [],
+                "emails": [],
+                "images": [],
+            }
+        return {
+            "title": "A",
+            "internal_links": [],
+            "external_links": [],
+            "emails": [],
+            "images": [],
+        }
+
+    mock_sleep = mocker.patch("minicrawler.crawl.time.sleep")
+    mocker.patch("minicrawler.crawl.http_get", side_effect=fake_http_get)
+    mocker.patch("minicrawler.crawl.parse_page", side_effect=fake_parse_page)
+
+    pages = list(
+        _crawl_pages(
+            seed=seed,
+            max_pages=2,
+            delay=delay,
+            timeout=1,
+            retries=0,
+            depth=2,
+        )
+    )
+
+    assert len(pages) == 2
+    # sleep should be called exactly once (between request 1 and request 2)
+    assert mock_sleep.call_count == 1
+    mock_sleep.assert_called_with(delay)
 
 def test_scrape_run_emails_deduplicates_across_pages(mocker) -> None:
     """
