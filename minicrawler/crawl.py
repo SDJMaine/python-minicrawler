@@ -66,15 +66,6 @@ def _crawl_pages(
     if should_crawl:
         seed_host, queue, seen_urls = _initialize_crawl_state(seed)
 
-        seed_normalized = _normalize_url(seed)
-        seed_host = urlparse(seed_normalized).netloc
-
-        queue: deque[Tuple[str, int]] = deque()
-        queue.append((seed_normalized, ZERO))
-
-        seen_urls: Set[str] = set()
-        seen_urls.add(seed_normalized)
-
         has_made_request = False
         queue_has_items = len(queue) > ZERO
 
@@ -256,6 +247,28 @@ def scrape_run(
 # ********************************************
 #            Helper functions
 # ********************************************
+def _initialize_crawl_state(seed: str) -> Tuple[str, deque[Tuple[str, int]], Set[str]]:
+    """
+    This function initializes crawl state:
+    normalizes the seed, extracts the host,
+    and prepares the BFS queue and seen set.
+
+    :param str seed:
+    :return Tuple[str, deque, Set[str]] : seed_host, queue, seen_urls
+    :exception na : na
+    :note na
+    """
+    seed_normalized = _normalize_url(seed)
+    seed_host = urlparse(seed_normalized).netloc
+
+    queue: deque[Tuple[str, int]] = deque()
+    queue.append((seed_normalized, ZERO))
+
+    seen_urls: Set[str] = set()
+    seen_urls.add(seed_normalized)
+
+    return seed_host, queue, seen_urls
+
 
 def _clamp_depth(depth: int) -> int:
     """
