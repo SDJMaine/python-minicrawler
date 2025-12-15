@@ -26,8 +26,8 @@ def _build_parser() -> argparse.ArgumentParser:
     """
     This function builds and
     returns the argument parser
-    for the tiny, polite, depth-1
-    web crawler command line application.
+    for the web crawler
+    command line application.
 
     :param na: na
     :return argparse.ArgumentParser : parser
@@ -198,8 +198,8 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[List[str]] = None) -> int:
     """
     This function is the application driver
-    for a tiny, polite, depth-1
-    web crawler program that writes NDJSON output.
+    for the web crawler program
+    that writes NDJSON output.
 
     :param argv: Optional[List[str]]
     :return int : status_code
