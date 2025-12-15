@@ -82,13 +82,13 @@ python -m minicrawler.cli instagram --url https://www.instagram.com/p/POST_ID/ -
 ```
 
 This will:
-- Start extracting `https://www.instagram.com/p/POST_ID/`
+- Attempt to extract `https://www.instagram.com/p/POST_ID/`
 - Fetch and extract metadata from a public/available Instagram post
 - Save results to `instagram.ndjson` in the current folder
 
 ---
 
-### 2️⃣ Common options
+## 📋Common options
 
 ### Crawl Options (`crawl`)
 | Option        | Description                                        | Default       |
@@ -215,20 +215,17 @@ Each line of the output file is a JSON object.
 
 **Python:** 3.10 or later  
 **Libraries:** install via pip
+- requests
+- beautifulsoup4
 
+Optionally, to match the testing environment:
+- pytest
+- pytest-mock
+
+Other dependencies are listed in `requirements.txt`.
 ```bash
 pip install -r requirements.txt
 ```
-
-Recommended requirements.txt contents:
-```txt
-requests>=2.31.0
-beautifulsoup4>=4.12.0
-
-pytest>=8.0.0
-pytest-mock>=3.12.0
-```
-
 ---
 ## 🧪 Running Tests
 
@@ -249,7 +246,7 @@ pytest tests/test_persist.py
 
 or Run the full test script:
 ```bash
-bash ./run_tests.sh
+./run_tests.sh
 ```
 
 ---
@@ -287,7 +284,7 @@ bash ./run_tests.sh
 3. Writes one NDJSON row (or logs an error if the fetch fails). 
 
 - Tip: Use the browser url link to the post (the normal https://www.instagram.com/p/<POST_ID>/ link) and avoid “share”/tracking parameters or shortened links.
-
+- Note: May fail if Instagram blocks automated requests or the post is not publicly accessible.
 ---
 
 ## ⚠️ Ethical use
@@ -315,9 +312,6 @@ tests/           # Unit tests
   test_persist.py   # Tests for persist.py
 requirements.txt  # Required libraries
 README.md         # This file
-data.ndjson         # Default output (created after running crawl)
-scrape.ndjson       # Default output (created after running scrape)
-instagram.ndjson    # Default output (created after running instagram)
 ```
 
 ---
