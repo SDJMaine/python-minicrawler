@@ -215,6 +215,7 @@ def test_crawl_pages_respects_depth_and_avoids_duplicate_enqueues(mocker) -> Non
     assert urls[0] == "https://example.com/"
 
 def test_crawl_pages_no_html_does_not_call_parse_and_yields_empty_lists(mocker) -> None:
+
     seed = "https://example.com/"
 
     mocked_parse = mocker.patch("minicrawler.crawl.parse_page")
@@ -699,3 +700,103 @@ def test_scrape_run_offsite_rows_include_kind_value_and_source_url(mocker) -> No
     assert row["kind"] == "offsite_link"
     assert row["value"] == "https://other.com/a"
     assert row["source_url"] == "https://example.com/"
+
+def test_run_happy_path_crawls_and_extracts_links_emails_images(mocker) -> None:
+    """
+    This function tests a small
+    integration happy path for run():
+    - uses mocked http_get to return deterministic HTML for 2 pages
+    - uses real parse_page to extract title/links/emails/images
+    - verifies BFS depth traversal and output row shaping
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    """
+    seed = "https://example.com/"
+
+    html_seed = """
+    <html>
+      <head><title>Home</title></head>
+      <body>
+        <a href="/about">About</a>
+        <a href="https://other.com/">Offsite</a>
+        <a href="mailto:hello@example.com">Email</a>
+        <img src="/img/logo.png" />
+      </body>
+    </html>
+    """
+
+    html_about = """
+    <html>
+      <head><title>About</title></head>
+      <body>
+        <a href="/">Home</a>
+        <p>Contact: team@example.com</p>
+        <img src="https://example.com/img/about.png" />
+      </body>
+    </html>
+    """
+
+    def fake_http_get(url: str, timeout: int, retries: int):
+        if url == seed:
+            return 200, seed, html_seed
+        if url == "https://example.com/about":
+            return 200, "https://example.com/about", html_about
+        return 404, url, None
+
+    mocked_get = mocker.patch("minicrawler.crawl.http_get", side_effect=fake_http_get)
+    mock_sleep = mocker.patch("minicrawler.crawl.time.sleep")
+
+    rows = list(
+        run(
+            seed=seed,
+            max_pages=10,
+            delay=0.0,
+            timeout=1,
+            retries=0,
+            depth=2,
+        )
+    )
+
+    assert len(rows) == 2
+
+    first = rows[0]
+    assert first["url"] == seed
+    assert first["status"] == 200
+    assert first["title"] == "Home"
+    assert first["level"] == 0
+
+    # internal/external links extracted by real parse_page
+    assert first["links"] == ["https://example.com/about"]
+    assert first["n_internal_links"] == 1
+    assert first["external_links"] == ["https://other.com/"]
+    assert first["n_external_links"] == 1
+
+    # emails/images extracted by real parse_page
+    assert "hello@example.com" in set(first["emails"])
+    assert first["n_emails"] == 1
+    assert "https://example.com/img/logo.png" in set(first["images"])
+    assert first["n_images"] == 1
+
+    second = rows[1]
+    assert second["url"] == "https://example.com/about"
+    assert second["status"] == 200
+    assert second["title"] == "About"
+    assert second["level"] == 1
+
+    # about page has an internal link back to home
+    assert "https://example.com/" in second["links"]
+    assert second["n_internal_links"] == 1
+    assert second["external_links"] == []
+    assert second["n_external_links"] == 0
+
+    # email from text should be found; images should be normalized
+    assert "team@example.com" in set(second["emails"])
+    assert "https://example.com/img/about.png" in set(second["images"])
+
+    # polite delay should not sleep when delay=0.0
+    mock_sleep.assert_not_called()
+
+    # two requests only (seed + /about)
+    assert mocked_get.call_count == 2
