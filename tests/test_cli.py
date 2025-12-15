@@ -304,3 +304,95 @@ def test_main_instagram_success_writes_one_row(mocker) -> None:
     mocked_parse.assert_called_once()
     mocked_open_writer.assert_called_once_with("insta.ndjson")
     mocked_write_row.assert_called_once_with(writer_obj, post_info)
+
+
+def test_summary_requires_file() -> None:
+    """
+    This function tests that
+    the summary subcommand requires --file.
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note argparse raises SystemExit on missing required args
+    """
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["summary"])
+
+
+def test_instagram_requires_url() -> None:
+    """
+    This function tests that
+    the instagram subcommand requires --url.
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note argparse raises SystemExit on missing required args
+    """
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["instagram"])
+
+
+def test_main_summary_requires_file_and_exits(mocker) -> None:
+    """
+    This function tests that
+    main() exits when summary is missing --file.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note argparse triggers SystemExit before summarize_file is called
+    """
+    mocker.patch("minicrawler.cli.summarize_file")
+    with pytest.raises(SystemExit):
+        main(["summary"])
+
+
+def test_main_instagram_requires_url_and_exits(mocker) -> None:
+    """
+    This function tests that
+    main() exits when instagram is missing --url.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note argparse triggers SystemExit before http_get is called
+    """
+    mocker.patch("minicrawler.cli.http_get")
+    with pytest.raises(SystemExit):
+        main(["instagram"])
+
+
+def test_build_parser_rejects_invalid_scrape_target() -> None:
+    """
+    This function tests that
+    scrape --target rejects invalid values.
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note argparse raises SystemExit for invalid choice
+    """
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["scrape", "--seed", "https://example.com/", "--target", "bad"])
+
+
+def test_build_parser_rejects_invalid_depth_choice() -> None:
+    """
+    This function tests that
+    crawl/scrape depth choices reject invalid values.
+
+    :param na: na
+    :return None: na
+    :exception na: na
+    :note argparse raises SystemExit for invalid choice
+    """
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["crawl", "--seed", "https://example.com/", "--depth", "99"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["scrape", "--seed", "https://example.com/", "--target", "emails", "--depth", "0"])
