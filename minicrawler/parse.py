@@ -12,10 +12,6 @@ from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin, urlparse, urlunparse
 from bs4 import BeautifulSoup
 
-# **********************
-# Constants (numerical only)
-# **********************
-
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 SPLIT_ONCE = 1
@@ -23,6 +19,79 @@ LAST_INDEX = -1
 
 EMAIL_PATTERN = r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"
 EMAIL_REGEX = re.compile(EMAIL_PATTERN)
+
+
+def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
+    """
+    This function parses a
+    single HTML page
+    and returns the page title
+    and lists of internal links,
+    external links,
+    and email addresses.
+
+    :param str html:
+    :param str base_url:
+    :param str seed_netloc:
+    :return Dict[str, object] : parsed_page_info
+    :exception na : na
+    :note na
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    title = _extract_title(soup)
+    internal_links, external_links = _extract_links(soup, base_url, seed_netloc)
+    emails = _extract_emails(soup)
+    images = _extract_images(soup, base_url)
+
+    parsed_page_info = {
+        "title": title,
+        "internal_links": internal_links,
+        "external_links": external_links,
+        "emails": emails,
+        "images": images,
+    }
+    return parsed_page_info
+
+def parse_instagram_post(html: str, url: str, status: int) -> Dict[str, object]:
+    """
+    This function parses an
+    Instagram post page
+    and returns basic information
+    including: title, description,
+    primary image URL, and
+    the poster's username
+    when available.
+
+    :param str html:
+    :param str url:
+    :param int status:
+    :return Dict[str, object] : instagram_post_info
+    :exception na : na
+    :note na
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    title = _extract_title(soup)
+    description = _extract_meta_property_content(soup, "og:description")
+    image_url = _extract_meta_property_content(soup, "og:image")
+    og_title_content = _extract_meta_property_content(soup, "og:title")
+
+    username = _extract_instagram_username(description, og_title_content)
+
+    if title is None:
+        title = "Instagram"
+
+    instagram_post_info: Dict[str, object] = {
+        "kind": "instagram_post",
+        "url": url,
+        "status": status,
+        "title": title,
+        "description": description,
+        "image_url": image_url,
+        "username": username,
+    }
+    return instagram_post_info
 
 def _normalize_url(url: str) -> str:
     """
@@ -160,80 +229,6 @@ def extract_description_content(html: str) -> Optional[str]:
         description_text = _extract_first_paragraph(soup)
 
     return description_text
-
-
-def parse_page(html: str, base_url: str, seed_netloc: str) -> Dict[str, object]:
-    """
-    This function parses a
-    single HTML page
-    and returns the page title
-    and lists of internal links,
-    external links,
-    and email addresses.
-
-    :param str html:
-    :param str base_url:
-    :param str seed_netloc:
-    :return Dict[str, object] : parsed_page_info
-    :exception na : na
-    :note na
-    """
-    soup = BeautifulSoup(html, "html.parser")
-
-    title = _extract_title(soup)
-    internal_links, external_links = _extract_links(soup, base_url, seed_netloc)
-    emails = _extract_emails(soup)
-    images = _extract_images(soup, base_url)
-
-    parsed_page_info = {
-        "title": title,
-        "internal_links": internal_links,
-        "external_links": external_links,
-        "emails": emails,
-        "images": images,
-    }
-    return parsed_page_info
-
-
-def parse_instagram_post(html: str, url: str, status: int) -> Dict[str, object]:
-    """
-    This function parses an
-    Instagram post page
-    and returns basic information
-    including: title, description,
-    primary image URL, and
-    the poster's username
-    when available.
-
-    :param str html:
-    :param str url:
-    :param int status:
-    :return Dict[str, object] : instagram_post_info
-    :exception na : na
-    :note na
-    """
-    soup = BeautifulSoup(html, "html.parser")
-
-    title = _extract_title(soup)
-    description = _extract_meta_property_content(soup, "og:description")
-    image_url = _extract_meta_property_content(soup, "og:image")
-    og_title_content = _extract_meta_property_content(soup, "og:title")
-
-    username = _extract_instagram_username(description, og_title_content)
-
-    if title is None:
-        title = "Instagram"
-
-    instagram_post_info: Dict[str, object] = {
-        "kind": "instagram_post",
-        "url": url,
-        "status": status,
-        "title": title,
-        "description": description,
-        "image_url": image_url,
-        "username": username,
-    }
-    return instagram_post_info
 
 # ********************************************
 #            Helper functions
