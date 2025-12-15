@@ -24,8 +24,10 @@ STATUS_NONE = 0
 
 def _is_html(content_type: Optional[str]) -> bool:
     """
-    This function checks whether the provided Content-Type header value
-    indicates that the HTTP response is HTML content.
+    This function checks whether
+    the provided Content-Type header value
+    indicates that the
+    HTTP response is HTML content.
 
     :param Optional[str] content_type:
     :return bool : is_html

@@ -48,8 +48,10 @@ class _NDJSONWriter:
     def write_row(self, row: Dict[str, Any]) -> None:
         """
         This function writes a
-        single dictionary as a JSON object
-        on one line of the NDJSON output file.
+        single dictionary as a
+        JSON object
+        on one line of the
+        NDJSON output file.
 
         :param row: Dict[str, Any]
         :return None : na

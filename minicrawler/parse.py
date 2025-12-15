@@ -96,7 +96,8 @@ def parse_instagram_post(html: str, url: str, status: int) -> Dict[str, object]:
 def _normalize_url(url: str) -> str:
     """
     This function normalizes a URL
-    by dropping fragments, lowercasing the scheme
+    by dropping fragments,
+    lowercasing the scheme
     and netloc, stripping default ports,
     and removing trailing slashes when
     appropriate.
