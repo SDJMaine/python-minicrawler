@@ -795,8 +795,8 @@ def test_run_happy_path_crawls_and_extracts_links_emails_images(mocker) -> None:
     assert "team@example.com" in set(second["emails"])
     assert "https://example.com/img/about.png" in set(second["images"])
 
-    # polite delay should not sleep when delay=0.0
-    mock_sleep.assert_not_called()
+    # delay logic: no sleep before first request; one sleep between requests
+    mock_sleep.assert_called_once_with(0.0)
 
     # two requests only (seed + /about)
     assert mocked_get.call_count == 2
