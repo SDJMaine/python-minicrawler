@@ -312,6 +312,7 @@ tests/           # Unit tests
   test_persist.py   # Tests for persist.py
 requirements.txt  # Required libraries
 README.md         # This file
+run_tests.sh      # Script to run all tests
 ```
 
 ---
