@@ -13,6 +13,7 @@ from minicrawler.crawl import (
     _crawl_pages,
 )
 
+
 def test_run_zero_max_pages_produces_no_results_and_no_requests(mocker) -> None:
     """
     This function tests that
@@ -214,8 +215,20 @@ def test_crawl_pages_respects_depth_and_avoids_duplicate_enqueues(mocker) -> Non
     # BFS order: seed, then its immediate children
     assert urls[0] == "https://example.com/"
 
-def test_crawl_pages_no_html_does_not_call_parse_and_yields_empty_lists(mocker) -> None:
 
+def test_crawl_pages_no_html_does_not_call_parse_and_yields_empty_lists(mocker) -> None:
+    """
+    This function tests that
+    when http_get returns html=None,
+    _crawl_pages does not call parse_page
+    and yields a page dict with empty
+    internal/external links, emails, and images.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note validates the "no HTML" branch behavior
+    """
     seed = "https://example.com/"
 
     mocked_parse = mocker.patch("minicrawler.crawl.parse_page")
@@ -248,6 +261,17 @@ def test_crawl_pages_no_html_does_not_call_parse_and_yields_empty_lists(mocker) 
 
 
 def test_crawl_pages_honors_max_pages_even_if_queue_has_more(mocker) -> None:
+    """
+    This function tests that
+    _crawl_pages stops yielding pages
+    after max_pages pages have been processed,
+    even if the queue contains additional URLs.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note forces a large enqueue set from the seed page
+    """
     seed = "https://example.com/"
 
     def fake_http_get(url: str, timeout: int, retries: int):
@@ -291,7 +315,17 @@ def test_crawl_pages_honors_max_pages_even_if_queue_has_more(mocker) -> None:
 
 
 def test_crawl_pages_depth_clamps_low_to_one(mocker) -> None:
-    # depth=0 should clamp to 1 => only the seed page (no enqueue)
+    """
+    This function tests that
+    depth values below 1 are clamped to 1,
+    meaning only the seed page is visited
+    and no additional URLs are enqueued.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note uses depth=0 to trigger the clamp behavior
+    """
     seed = "https://example.com/"
 
     def fake_http_get(url: str, timeout: int, retries: int):
@@ -326,7 +360,17 @@ def test_crawl_pages_depth_clamps_low_to_one(mocker) -> None:
 
 
 def test_crawl_pages_depth_clamps_high_to_three(mocker) -> None:
-    # depth=99 should clamp to 3 => levels 0,1,2 only (not 3)
+    """
+    This function tests that
+    depth values above the maximum are clamped,
+    and specifically that depth is clamped to 3,
+    so _crawl_pages only visits levels 0, 1, and 2.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note uses depth=99 to trigger the clamp behavior
+    """
     seed = "https://example.com/"
 
     def fake_http_get(url: str, timeout: int, retries: int):
@@ -392,6 +436,17 @@ def test_crawl_pages_depth_clamps_high_to_three(mocker) -> None:
 
 
 def test_crawl_pages_sleep_not_called_before_first_request_and_called_between(mocker) -> None:
+    """
+    This function tests that
+    _crawl_pages does not call time.sleep
+    before the first HTTP request, but does
+    call it exactly once between requests.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note uses two pages to verify sleep timing behavior
+    """
     seed = "https://example.com/"
     delay = 0.25
 
@@ -434,6 +489,7 @@ def test_crawl_pages_sleep_not_called_before_first_request_and_called_between(mo
     # sleep should be called exactly once (between request 1 and request 2)
     assert mock_sleep.call_count == 1
     mock_sleep.assert_called_with(delay)
+
 
 def test_scrape_run_emails_deduplicates_across_pages(mocker) -> None:
     """
@@ -497,6 +553,7 @@ def test_scrape_run_emails_deduplicates_across_pages(mocker) -> None:
     assert mapping["a@example.com"] == "https://example.com/"
     assert mapping["b@example.com"] == "https://example.com/"
     assert mapping["c@example.com"] == "https://example.com/about"
+
 
 def test_scrape_run_offsite_deduplicates_across_pages(mocker) -> None:
     """
@@ -667,7 +724,19 @@ def test_scrape_run_unknown_target_yields_no_rows(mocker) -> None:
 
     assert rows == []
 
+
 def test_scrape_run_offsite_rows_include_kind_value_and_source_url(mocker) -> None:
+    """
+    This function tests that
+    scrape_run with target 'offsite'
+    yields rows that include the required
+    keys: kind, value, and source_url.
+
+    :param mocker: pytest mocker fixture
+    :return None: na
+    :exception na: na
+    :note validates row shape for offsite scrape output
+    """
     fake_pages = [
         {
             "url": "https://example.com/",
@@ -700,6 +769,7 @@ def test_scrape_run_offsite_rows_include_kind_value_and_source_url(mocker) -> No
     assert row["kind"] == "offsite_link"
     assert row["value"] == "https://other.com/a"
     assert row["source_url"] == "https://example.com/"
+
 
 def test_run_happy_path_crawls_and_extracts_links_emails_images(mocker) -> None:
     """
