@@ -62,7 +62,6 @@ def http_get(
     :note na
     """
     attempt = 0
-    last_exc = None
     status = STATUS_NONE
     final_url = url
     html = None
@@ -108,7 +107,6 @@ def http_get(
                 should_continue = False
 
         except (requests.Timeout, requests.ConnectionError) as exc:
-            last_exc = exc
             if attempt < max_attempts:
                 logging.debug(
                     "Network error for %s; retrying (%d/%d)",
