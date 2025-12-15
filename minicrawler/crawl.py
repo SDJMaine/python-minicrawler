@@ -20,8 +20,8 @@ from .parse import parse_page, _normalize_url
 # Constants (numerical only)
 # **********************
 
-ZERO = 0
-ONE = 1
+START_LEVEL = 0
+LEVEL_INCREMENT = 1
 
 INTERNAL_LINK_LIMIT = 5
 MIN_PAGES_ALLOWED = 1
@@ -29,7 +29,6 @@ SLEEP_MIN_DELAY = 0.0
 
 MIN_DEPTH = 1
 MAX_DEPTH = 3
-
 
 def _crawl_pages(
         seed: str,
@@ -55,7 +54,7 @@ def _crawl_pages(
     :exception na : na
     :note na
     """
-    pages_yielded = ZERO
+    pages_yielded = START_LEVEL
     should_crawl = True
 
     depth = _clamp_depth(depth)
@@ -67,10 +66,10 @@ def _crawl_pages(
         seed_host, queue, seen_urls = _initialize_crawl_state(seed)
 
         has_made_request = False
-        queue_has_items = len(queue) > ZERO
+        queue_has_items = len(queue) > START_LEVEL
 
         while queue_has_items and pages_yielded < max_pages:
-            current_url, level = queue[ZERO]
+            current_url, level = queue[START_LEVEL]
             queue.popleft()
 
             _sleep_between_requests(has_made_request, delay)
@@ -113,8 +112,8 @@ def _crawl_pages(
             }
             yield page_info
 
-            pages_yielded = pages_yielded + ONE
-            queue_has_items = len(queue) > ZERO
+            pages_yielded = pages_yielded + LEVEL_INCREMENT
+            queue_has_items = len(queue) > START_LEVEL
 
     return
 
@@ -262,7 +261,7 @@ def _initialize_crawl_state(seed: str) -> Tuple[str, deque[Tuple[str, int]], Set
     seed_host = urlparse(seed_normalized).netloc
 
     queue: deque[Tuple[str, int]] = deque()
-    queue.append((seed_normalized, ZERO))
+    queue.append((seed_normalized, START_LEVEL))
 
     seen_urls: Set[str] = set()
     seen_urls.add(seed_normalized)
@@ -354,11 +353,11 @@ def _enqueue_children_if_allowed(
     :exception na : na
     :note na
     """
-    can_expand = level < (depth - ONE)
+    can_expand = level < (depth - LEVEL_INCREMENT)
 
     if can_expand:
         new_links = _collect_unseen_links(internal_links, seen_urls)
-        next_level = level + ONE
+        next_level = level + LEVEL_INCREMENT
         for new_url in new_links:
             queue.append((new_url, next_level))
 
@@ -384,7 +383,7 @@ def _yield_unique_scrape_rows(
     :exception na : na
     :note na
     """
-    index = ZERO
+    index = START_LEVEL
     total = len(values)
 
     while index < total:
@@ -397,6 +396,6 @@ def _yield_unique_scrape_rows(
                 "source_url": source_url,
             }
             yield row
-        index = index + ONE
+        index = index + LEVEL_INCREMENT
 
     return
