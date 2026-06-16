@@ -1,6 +1,5 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: 8
 # Purpose: Package initializer for
 #           minicrawler
 # ###########################################

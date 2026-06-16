@@ -1,6 +1,5 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: Final Project
 # Purpose: Parse module for the web crawler
 #          Parses HTML pages to extract
 #          links, emails, images, and titles

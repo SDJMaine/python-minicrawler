@@ -1,6 +1,5 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: Final Project
 # Purpose: Tester for crawl.py
 #          run, scrape_run, and _crawl_pages
 # ###########################################

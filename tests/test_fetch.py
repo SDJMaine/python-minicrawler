@@ -1,6 +1,5 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: Final Project
 # Purpose: Tester for fetch.py
 #           functions
 # ###########################################

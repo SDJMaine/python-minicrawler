@@ -1,6 +1,5 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: Final Project
 # Purpose: Fetch module for the web crawler
 #          Provides HTTP GET
 #          with retry and filtering

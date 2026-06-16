@@ -40,6 +40,21 @@ All commands are run from the **project root** (where `README.md` and `requireme
 - Writes one record as **NDJSON**
 ---
 
+## 🧠 Concepts Demonstrated
+
+This project exercises a range of practical software-engineering concepts:
+
+- **Command-line interface design** — `argparse` with subcommands (`crawl`, `scrape`, `summary`, `instagram`) and per-command options
+- **HTTP networking** — fetching pages with configurable timeouts and retry on timeout/5xx
+- **HTML parsing** — extracting titles, links, emails, and images with BeautifulSoup and regular expressions
+- **Graph traversal** — queue-based, depth-limited crawl of same-host pages
+- **Deduplication** — emitting unique values across all visited pages
+- **File I/O** — streaming results to NDJSON (one JSON object per line) and summarizing existing files
+- **Error handling & logging** — graceful failure handling with the `logging` module
+- **Unit testing** — a pytest suite using `pytest-mock` to mock network calls
+
+---
+
 ## 🧭 Usage
 
 All commands below are run from the **project root** (where `README.md` and `requirements.txt` live)
@@ -213,7 +228,7 @@ Each line of the output file is a JSON object.
 
 ## ⚙️ Requirements
 
-**Python:** 3.10 or later  
+**Python:** 3.10 or later (build verified on Python 3.12.8)  
 **Libraries:** install via pip
 - requests
 - beautifulsoup4
@@ -248,6 +263,31 @@ or Run the full test script:
 ```bash
 ./run_tests.sh
 ```
+
+The suite currently contains **79 tests, all passing** (verified with pytest on Python 3.12.8).
+
+---
+
+## 📊 Example Output
+
+Running `summary` against an NDJSON file produced by `crawl` prints aggregated counts to the console:
+
+```text
+$ python -m minicrawler.cli summary --file data.ndjson
+Summary for: data.ndjson
+Total rows: 20
+Unique URLs: 20
+2xx statuses: 20
+3xx statuses: 0
+4xx statuses: 0
+5xx statuses: 0
+Total internal links: 95
+Total external links: 153
+Total emails: 21
+Total images: 94
+```
+
+See the [Output format (NDJSON)](#3️⃣-output-format-ndjson) section above for the per-record structure written by each command.
 
 ---
 
@@ -317,6 +357,40 @@ run_tests.sh      # Script to run all tests
 
 ---
 
+## 🎓 Academic Context
+
+> This project was originally completed as an academic assignment and has been repackaged for portfolio review. The original implementation and behavior have been preserved.
+
+---
+
+## ⚠️ Limitations
+
+- Crawls a **single host only** — it does not follow links to external domains.
+- Crawl depth is limited to **1–3 levels**.
+- Fetches and parses **static HTML only** — JavaScript-rendered content is not executed.
+- The Instagram extractor depends on publicly available metadata and **may fail** if Instagram blocks automated requests or the post is private.
+- The visited set and deduplication are kept **in memory**, so very large crawls are bounded by available memory and the `--max-pages` limit.
+
+---
+
+## 🚧 Possible Future Improvements
+
+These are potential future directions, **not** currently implemented features:
+
+- Honoring `robots.txt` and crawl-delay directives.
+- Concurrent or asynchronous fetching for faster crawls.
+- Resumable crawls with persisted state.
+- A configuration file as an alternative to command-line flags.
+- Packaging as an installable console script (e.g. a `pyproject.toml` entry point).
+
+---
+
+## 📌 Status
+
+Academic project — **complete** and repackaged for portfolio review.
+
+---
+
 ## 🪪 License
-This version is provided for educational and demonstration purposes.  
+See [LICENSE-NOTICE.md](LICENSE-NOTICE.md): **no license has been selected**, and the code is currently provided for portfolio review.  
 Use responsibly. No warranty expressed or implied.

@@ -1,15 +1,43 @@
-*
+# Operating-system metadata
+.DS_Store
+Thumbs.db
 
-# Add Everything we need back
-!.gitignore
-!minicrawler
-!minicrawler/**
-!tests
-!tests/**
-!README.md
-!run_tests.sh
-
-# But still ignore Python bytecode/cache
+# Python bytecode and caches
 __pycache__/
 **/__pycache__/
 *.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage and test output
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build/package output
+build/
+dist/
+*.egg-info/
+
+# IDE/editor files
+.idea/
+.vscode/
+
+# Local environment and logs
+.env
+.env.*
+*.log
+*.tmp
+*.bak
+
+# Generated crawler outputs and local assignment artifacts
+*.ndjson
+old/

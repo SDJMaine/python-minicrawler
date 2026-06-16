@@ -1,6 +1,5 @@
 # ###########################################
 # Name: Shayene Johnson
-# Assignment: Final Project
 # Purpose: A crawl module for the web crawler
 #          Performs depth-limited crawling
 #          and scrape traversal
