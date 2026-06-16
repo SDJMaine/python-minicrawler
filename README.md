@@ -1,13 +1,13 @@
-# 🕸️ MiniCrawler
+# MiniCrawler
 
 A tiny, polite, **depth-limited (1–3)** web crawler and scraper written in Python.
 
 MiniCrawler starts from a seed URL, crawls same-host pages only, extracts page metadata (title and links), and writes results to NDJSON. It also supports scraping emails, offsite links, and images, printing a summary of an NDJSON file, and a special Instagram extractor.
-All commands are run from the **project root** (where `README.md` and `requirements.txt` live).
+All commands are run from the **project root**.
 
 ---
 
-## 🚀 Features
+## Features
 
 ### Crawler
 - Same-host crawling only (does not crawl external domains)
@@ -25,7 +25,7 @@ All commands are run from the **project root** (where `README.md` and `requireme
 - Saves output as **NDJSON**, one JSON object per line
 
 ### Scraper 
-- Crawls **same-host pages only** (same crawl rules as `crawl`)
+- Same crawl rules as `crawl`
 - Emits **deduplicated values across all visited pages**:
     - `scrape --target emails` → unique emails
     - `scrape --target offsite` → unique external (offsite) links
@@ -36,11 +36,11 @@ All commands are run from the **project root** (where `README.md` and `requireme
 `summary` prints aggregated counts for NDJSON produced by `crawl`, `scrape`, or `instagram`
 
 ### Instagram
-- `instagram` fetches a post URL and extracts available metadata (title/description/image_url/username)
+- `instagram` fetches a publicly available post URL and extracts available metadata (title/description/image_url/username)
 - Writes one record as **NDJSON**
 ---
 
-## 🧠 Concepts Demonstrated
+## Concepts Demonstrated
 
 This project exercises a range of practical software-engineering concepts:
 
@@ -55,11 +55,11 @@ This project exercises a range of practical software-engineering concepts:
 
 ---
 
-## 🧭 Usage
+## Usage
 
 All commands below are run from the **project root** (where `README.md` and `requirements.txt` live)
 
-### 1️⃣ Crawl
+### Crawl
 ```bash
 python -m minicrawler.cli crawl --seed https://example.com/ --depth 1
 ```
@@ -69,7 +69,7 @@ This will:
 - Visit the seed page and crawl internal links up to --depth (default: 1), stopping at --max-pages.
 - Save results to `data.ndjson` in the current folder
 
-### 2️⃣ Scrape
+### Scrape
 ```bash
 python -m minicrawler.cli scrape --seed https://example.com/ --target emails --depth 1
 python -m minicrawler.cli scrape --seed https://example.com/ --target offsite --depth 1
@@ -82,7 +82,7 @@ This will:
 - Visit the seed page and scrape up to --depth (default: 1) (same host only)
 - Save results to `scrape.ndjson` in the current folder
 
-### 3️⃣ Summary (enhancement)
+### Summary (enhancement)
 ```bash
 python -m minicrawler.cli summary --file data.ndjson
 ```
@@ -91,7 +91,7 @@ This will:
 - Output to console a summary of `data.ndjson`
 - Display counts for total rows, unique URLs, status buckets (2xx–5xx), and totals for internal links, external links, emails, and images
 
-### 4️⃣ Instagram (special extractor)
+### Instagram (special extractor)
 ```bash
 python -m minicrawler.cli instagram --url https://www.instagram.com/p/POST_ID/ --out instagram.ndjson
 ```
@@ -103,7 +103,7 @@ This will:
 
 ---
 
-## 📋Common options
+## Common options
 
 ### Crawl Options (`crawl`)
 | Option        | Description                                        | Default       |
@@ -167,7 +167,7 @@ python -m minicrawler.cli instagram --url https://www.instagram.com/p/POST_ID/ -
 
 ---
 
-### 3️⃣ Output format (NDJSON)
+### Output format (NDJSON)
 Each line of the output file is a JSON object.
 
 #### Crawl output
@@ -226,7 +226,7 @@ Each line of the output file is a JSON object.
 
 ---
 
-## ⚙️ Requirements
+## Requirements
 
 **Python:** 3.10 or later (build verified on Python 3.12.8)  
 **Libraries:** install via pip
@@ -242,7 +242,7 @@ Other dependencies are listed in `requirements.txt`.
 pip install -r requirements.txt
 ```
 ---
-## 🧪 Running Tests
+## Running Tests
 
 Tests live in the tests package and use pytest. 
 To run tests, from the project root:
@@ -291,7 +291,7 @@ See the [Output format (NDJSON)](#3️⃣-output-format-ndjson) section above fo
 
 ---
 
-## 📄 How It Works
+## How It Works
 
 ### `crawl`
 1. Starts at the given `--seed` URL.
@@ -327,14 +327,14 @@ See the [Output format (NDJSON)](#3️⃣-output-format-ndjson) section above fo
 - Note: May fail if Instagram blocks automated requests or the post is not publicly accessible.
 ---
 
-## ⚠️ Ethical use
+## Ethical use
 - Crawl or Scrape **only public pages** you have permission to access.
 - Respect server load — use reasonable delays and limits.
 - Do **not** use this crawler for aggressive scraping or automated bulk downloads.
 
 ---
 
-## 🧩 File summary and structure
+## File summary and structure
 ```
 minicrawler/     # Main package
   __init__.py     # Package initializer
@@ -357,13 +357,13 @@ run_tests.sh      # Script to run all tests
 
 ---
 
-## 🎓 Academic Context
+## Academic Context
 
 > This project was originally completed as an academic assignment and has been repackaged for portfolio review. The original implementation and behavior have been preserved.
 
 ---
 
-## ⚠️ Limitations
+## Limitations
 
 - Crawls a **single host only** — it does not follow links to external domains.
 - Crawl depth is limited to **1–3 levels**.
@@ -373,7 +373,7 @@ run_tests.sh      # Script to run all tests
 
 ---
 
-## 🚧 Possible Future Improvements
+## Possible Future Improvements
 
 These are potential future directions, **not** currently implemented features:
 
@@ -385,12 +385,12 @@ These are potential future directions, **not** currently implemented features:
 
 ---
 
-## 📌 Status
+## Status
 
 Academic project — **complete** and repackaged for portfolio review.
 
 ---
 
-## 🪪 License
+## License
 See [LICENSE-NOTICE.md](LICENSE-NOTICE.md): **no license has been selected**, and the code is currently provided for portfolio review.  
 Use responsibly. No warranty expressed or implied.
